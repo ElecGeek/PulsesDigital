@@ -2,7 +2,9 @@ This is a fun project to produce the pulses as the MultiSIgnalGene do, but as a 
 
 It is designed mostly for multiple channels.
 
-It is similar to the pulses_gene project. The macro blocs logic is the same, plus additional features. It is however only a pure VHDL project.
+It is similar to the pulses_gene project. The macro blocs logic is the same, plus additional features.
+More input methods are planned. The pulses are "smoothed" by a real algorithm (1/4, 1/2, 3/4, full, ..., 3/4, 1/2, 1/4) rather than some cheap low pass RCs.
+It is however only a pure VHDL project.
 
 There are frames, super frames etc... Each frame level computes a macro bloc.
 Inside each level, the computation is done sequentially, one channel after the other. 
