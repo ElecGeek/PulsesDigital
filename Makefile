@@ -32,11 +32,11 @@ pulse_bundle_simul : $(SCRDIR)pulse_gene.vhdl $(SCRDIR)pulse_gene_test.vhdl  $(S
 	$(GHDL_PROG) -e $(VFLAGS) Pulses_bundle_test
 	$(GHDL_PROG) -r $(VFLAGS) Pulses_bundle_test --vcd=$(WAVDESTDIR)Pulses_bundle_test.wav 2>&1 | tee $(DESTDIR)Pulses_bundle_test.out.txt
 
-amplitude_parts_amplitude : $(SCRDIR)amplitude_gene.vhdl $(SCRDIR)amplitude_gene_test.vhdl $(SCRDIR)utils_package.vhdl $(SCRDIR)amplitude_gene_package.vhdl 
+amplitude_parts_simul : $(SCRDIR)amplitude.vhdl $(SCRDIR)amplitude_test.vhdl $(SCRDIR)utils_package.vhdl $(SCRDIR)amplitude_package.vhdl 
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl
-	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_gene_package.vhdl
-	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_gene.vhdl
-	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_gene_test.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_test.vhdl
 	$(GHDL_PROG) -e $(VFLAGS) Amplitudes_multiplier_test
 	$(GHDL_PROG) -r $(VFLAGS) Amplitudes_multiplier_test --vcd=$(WAVDESTDIR)Amplitudes_multiplier_test.wav 2>&1 | tee $(DESTDIR)Amplitudes_multiplier_test.out.txt
 	$(GHDL_PROG) -e $(VFLAGS) Amplitudes_sequencer_test
