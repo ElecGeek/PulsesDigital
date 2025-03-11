@@ -37,8 +37,8 @@ amplitude_parts_simul : $(SCRDIR)amplitude.vhdl $(SCRDIR)amplitude_test.vhdl $(S
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_test.vhdl
-	$(GHDL_PROG) -e $(VFLAGS) Amplitudes_multiplier_test
-	$(GHDL_PROG) -r $(VFLAGS) Amplitudes_multiplier_test --vcd=$(WAVDESTDIR)Amplitudes_multiplier_test.wav 2>&1 | tee $(DESTDIR)Amplitudes_multiplier_test.out.txt
+	$(GHDL_PROG) -e $(VFLAGS) Amplitudes_multiplier_R2R_test
+	$(GHDL_PROG) -r $(VFLAGS) Amplitudes_multiplier_R2R_test --vcd=$(WAVDESTDIR)amplitudes_multiplier_R2R_test.wav 2>&1 | tee $(DESTDIR)amplitudes_multiplier_R2R_test.out.txt
 	$(GHDL_PROG) -e $(VFLAGS) Amplitudes_sequencer_test
 	$(GHDL_PROG) -r $(VFLAGS) Amplitudes_sequencer_test --vcd=$(WAVDESTDIR)Amplitudes_sequencer_test.wav 2>&1 | tee $(DESTDIR)Amplitudes_sequencer_test.out.txt
 
