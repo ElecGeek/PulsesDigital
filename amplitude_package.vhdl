@@ -25,21 +25,25 @@ package Amplitude_pac is
     generic (
       --! Does not impact anything.
       --! It is only to notice the relevance of the computation 
-      DAC_cycles : integer range 10 to 40;
+      DAC_cycles      : integer range 10 to 100;
       --! Does not impact anything.
       --! It is only to notice the relevance of the computation 
       Channels_number : integer range 2 to 300
       );
     port (
       --! Master clock
-      CLK    : in  std_logic;
-      RST    : in  std_logic;
-      EN     : in  std_logic;
-      N      : in  std_logic_vector;
-      M      : in  std_logic_vector;
-      --! Output. A length greater than N'length + M'length
-      --! is irrelevant
-      theOut : out std_logic_vector);
+      CLK     : in  std_logic;
+      --! Loads new operands, otherwise computes
+      load    : in  std_logic;
+      --! Executes the rail to rail correction
+      --! if load = 0 only
+      --! If executed too early, the result is less corrected (but valid)
+      execR2R : in  std_logic;
+      M       : in  std_logic_vector;
+      N       : in  std_logic_vector;
+      --! The value grows as long as there are 1 bits in N
+      --! The value remains if there are no more 1 bits in N
+      theOut  : out std_logic_vector);
 
   end component Amplitude_multiplier;
   
