@@ -25,7 +25,7 @@ entity Pulses_stateMachine is
 end entity Pulses_stateMachine;
 
 architecture arch of Pulses_stateMachine is
-  signal counter_reset : std_logic_vector(priv_counter_out'range) := (others => '0');
+  constant counter_reset : std_logic_vector(priv_counter_out'range) := (others => '0');
 begin
 -- State variable definition
   -- 0000 : wait for start, 0 negative
@@ -193,11 +193,11 @@ use ieee.std_logic_1164.all,
   work.Utils_pac.StateNumbers_2_BitsNumbers;
 entity Pulses_sequencer is
   generic (
-    chans_number     : integer range 2 to 300 := 4;
-    DAC_cycles       : integer range 10 to 40;
+    chans_number              : integer range 2 to 300 := 4;
+    MasterCLK_SampleCLK_ratio : integer range 10 to 40;
     --! Does one more RAM operation.
     --! This is set by the bundle, and should be modified
-    has_extra_RAM_op : boolean
+    has_extra_RAM_op          : boolean
     );
   port (
     --! Master clock
@@ -225,7 +225,7 @@ architecture arch of Pulses_sequencer is
   signal statemachine_state    : std_logic_vector(2 downto 0);
   signal channel_not_global    : std_logic;
   signal current_chan          : std_logic_vector(StateNumbers_2_BitsNumbers(chans_number + 1) - 1 downto 0);
-  constant extra_cycles_max    : integer := StateNumbers_2_BitsNumbers(DAC_cycles - (chans_number+1)*4);
+  constant extra_cycles_max    : integer := StateNumbers_2_BitsNumbers(MasterCLK_SampleCLK_ratio - (chans_number+1)*4);
   signal extra_cycles_count    : std_logic_vector(extra_cycles_max - 1 downto 0);
   -- Round to the power 2 above
   signal EN_shift              : std_logic_vector(2**StateNumbers_2_BitsNumbers(chans_number + 1) - 1 downto 0);
@@ -280,7 +280,7 @@ begin
             -- Only "100" is used in the series "1xx". But be symmetric in order
             --   to avoid un-useful logic
             when "001" | "101" =>
-              EN_out <= '0';
+              EN_out             <= '0';
               RAM_read           <= '0';
               statemachine_state <= "010";
             when "010" =>
@@ -315,7 +315,7 @@ begin
               end if EXTRA_C_if;
             -- in fact "000"
             when others =>
-              EN_out             <= '1';
+              EN_out        <= '1';
               EN_shift      <= (others => '0');
               RAM_addr_high <= std_logic_vector(to_unsigned(chans_number, RAM_addr_high'length));
               RAM_addr_low  <= "0";
@@ -341,7 +341,7 @@ use ieee.std_logic_1164.all,
 entity Pulses_DAC_wrapper is
   generic (
     --! The entity should, check the DAC requirement is lower or equal
-    DAC_cycles : integer range 10 to 40
+    MasterCLK_SampleCLK_ratio : integer range 10 to 40
     );
   port (
     --! Master clock
@@ -361,7 +361,7 @@ architecture arch of Pulses_DAC_wrapper is
   component Pulses_DAC_generic is
     --! Tells the number of clock cycles available for a writing
     generic (
-      DAC_cycles : integer range 10 to 40
+      MasterCLK_SampleCLK_ratio : integer range 10 to 40
       );
     port (
       --! Master clock
@@ -379,7 +379,7 @@ architecture arch of Pulses_DAC_wrapper is
 begin
   Pulses_DAC_instanc : Pulses_DAC_generic
     generic map (
-      DAC_cycles => DAC_cycles)
+      MasterCLK_SampleCLK_ratio => MasterCLK_SampleCLK_ratio)
     port map (
       CLK               => CLK,
       RST               => RST,
@@ -406,7 +406,7 @@ use ieee.std_logic_1164.all,
 entity Pulses_DAC_generic is
   generic (
     --! The entity should, check the DAC requirement is lower or equal
-    DAC_cycles : integer range 10 to 40
+    MasterCLK_SampleCLK_ratio : integer range 10 to 40
     );
   port (
     --! Master clock
@@ -427,8 +427,11 @@ architecture arch of Pulses_DAC_generic is
   signal amplitude_next : std_logic_vector(in_amplitude'range);
   signal polar_next     : std_logic;
 begin
-  main_proc : process(CLK) is
 
+--TODO
+  DAC_transfer <= '0';
+
+  main_proc : process(CLK) is
   begin
     if rising_edge(CLK) then
       RST_if : if RST = '0' then
@@ -469,8 +472,8 @@ use ieee.std_logic_1164.all,
 --! 
 entity Pulses_bundle is
   generic (
-    chans_number : integer range 2 to 300 := 4;
-    DAC_cycles   : integer range 10 to 40 := 22
+    chans_number              : integer range 2 to 300 := 4;
+    MasterCLK_SampleCLK_ratio : integer range 10 to 40 := 22
     );
   port (
     --! Master clock
@@ -517,7 +520,7 @@ architecture arch of Pulses_bundle is
   signal amplitude_for_DAC : std_logic_vector(15 downto 0);
   signal EN_out            : std_logic;
 begin
-  assert priv_amplitude_in'length >= state_length + counter_length
+  assert priv_amplitude_in'length >= (state_length + counter_length)
     report "in this version, the amplitude size should be at least the state size (3) plus the counter size"
     severity error;
   
@@ -561,8 +564,8 @@ begin
 
   Pulses_sequencer_instanc : Pulses_sequencer
     generic map(
-      chans_number => chans_number,
-      DAC_cycles   => DAC_cycles
+      chans_number              => chans_number,
+      MasterCLK_SampleCLK_ratio => MasterCLK_SampleCLK_ratio
       )
     port map(
       CLK           => CLK,
@@ -615,7 +618,7 @@ begin
 
     chan_instanc : Pulses_DAC_wrapper generic map
       (
-        DAC_cycles => DAC_cycles
+        MasterCLK_SampleCLK_ratio => MasterCLK_SampleCLK_ratio
         )
       port map
       (

@@ -31,8 +31,8 @@ begin
     N_gene : for ind2 in N_min to N_max generate
       
       main_instanc : Amplitude_multiplier generic map (
-        DAC_cycles      => 30,
-        Channels_number => 2
+        MasterCLK_SampleCLK_ratio => 30,
+        Channels_number           => 2
         )
         port map(
           CLK     => '0',
@@ -62,30 +62,30 @@ architecture arch of Amplitudes_multiplier_test is
   signal M             : std_logic_vector(M_size - 1 downto 0);
   signal N             : std_logic_vector(N_size - 1 downto 0);
   signal theOut        : std_logic_vector(M_size + N_size - 1 downto 0);
-  signal CLK           : std_logic                       := '0';
+  signal CLK           : std_logic               := '0';
   signal load          : std_logic;
-  signal counter       : unsigned(12 downto 0)            := (others      => '0');
+  signal counter       : unsigned(12 downto 0)   := (others      => '0');
   constant counter_max : unsigned(counter'range) := ("1", others => '0');
   component Amplitude_multiplier_CXX_wrap is
-  generic (
-    M_size   : positive := 6;
-    N_size   : positive := 6;
-    Out_size : positive := 12);
-  port (
-    --! For more information see in the wrapped entity
-    CLK     : in  std_logic;
-    --! For more information see in the wrapped entity
-    load    : in  std_logic;
-    --! For more information see in the wrapped entity
-    execR2R : in  std_logic;
-    --! For more information see in the wrapped entity
-    M       : in  std_logic_vector(M_size - 1 downto 0);
-    --! For more information see in the wrapped entity
-    N       : in  std_logic_vector(N_size - 1 downto 0);
-    --! For more information see in the wrapped entity
-    theOut  : out std_logic_vector(Out_size - 1 downto 0)
-    );
-end component Amplitude_multiplier_CXX_wrap;
+    generic (
+      M_size   : positive := 6;
+      N_size   : positive := 6;
+      Out_size : positive := 12);
+    port (
+      --! For more information see in the wrapped entity
+      CLK     : in  std_logic;
+      --! For more information see in the wrapped entity
+      load    : in  std_logic;
+      --! For more information see in the wrapped entity
+      execR2R : in  std_logic;
+      --! For more information see in the wrapped entity
+      M       : in  std_logic_vector(M_size - 1 downto 0);
+      --! For more information see in the wrapped entity
+      N       : in  std_logic_vector(N_size - 1 downto 0);
+      --! For more information see in the wrapped entity
+      theOut  : out std_logic_vector(Out_size - 1 downto 0)
+      );
+  end component Amplitude_multiplier_CXX_wrap;
 
 begin
 
@@ -97,8 +97,8 @@ begin
         if counter(counter'low+3 downto counter'low) = "0000" then
           load <= '1';
         elsif counter(counter'low+3 downto counter'low) = "1111" then
-          M <= ( std_logic_vector(counter(counter'high - 1 downto counter'high - 4 )), others => '1' );
-          N <= ( std_logic_vector(counter(counter'high - 5 downto counter'high - 8 )), others => '1' );
+          M <= (std_logic_vector(counter(counter'high - 1 downto counter'high - 4)), others => '1');
+          N <= (std_logic_vector(counter(counter'high - 5 downto counter'high - 8)), others => '1');
         else
           load <= '0';
         end if;
@@ -112,8 +112,8 @@ begin
 
   main_instanc : Amplitude_multiplier_CXX_wrap
     --generic map (
-    --DAC_cycles      => 30,
-    --Channels_number => 2
+    --MasterCLK_SampleCLK_ratio      => 30,
+    --Channels_number                => 2
     --)
     port map(
       CLK     => CLK,

@@ -25,7 +25,7 @@ package Amplitude_pac is
     generic (
       --! Does not impact anything.
       --! It is only to notice the relevance of the computation 
-      DAC_cycles      : integer range 10 to 100;
+      MasterCLK_SampleCLK_ratio      : integer range 10 to 100;
       --! Does not impact anything.
       --! It is only to notice the relevance of the computation 
       Channels_number : integer range 2 to 300

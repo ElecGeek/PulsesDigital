@@ -29,10 +29,10 @@ entity Amplitude_multiplier is
   generic (
     --! Does not impact anything.
     --! It is only to notice the relevance of the computation
-    DAC_cycles      : integer range 10 to 40;
+    MasterCLK_SampleCLK_ratio : integer range 10 to 40;
     --! Does not impact anything.
     --! It is only to notice the relevance of the computation 
-    Channels_number : integer range 2 to 300
+    Channels_number           : integer range 2 to 300
     );
   port (
     --! Master clock
@@ -82,11 +82,11 @@ begin
                           " is bigger than the size of N+M (" & integer'image(N'length) & " and " &
                           integer'image(M'length) & "): irrelevant"
                           severity note;
-  assert (DAC_cycles > M'length / 2) or (Channels_number * 8 > M'length / 2)
+  assert (MasterCLK_SampleCLK_ratio > M'length / 2) or (Channels_number * 8 > M'length / 2)
     report "The system can not process at least the half of the length of M (" & integer'image(M'length) &
     "), it is a non-sense"
     severity error;
-  assert (DAC_cycles > M'length) or (Channels_number * 8 > M'length)
+  assert (MasterCLK_SampleCLK_ratio > M'length) or (Channels_number * 8 > M'length)
     report "The system can not process all the length of M (" & integer'image(M'length) &
     "), some precision is lost"
     severity warning;
@@ -117,10 +117,10 @@ begin
     if rising_edge(CLK) then
       IF_cmd : if load = '1' then
         -- opA       <= ('0', M(M'high downto M'low), others => '0');
-        padding_M := (others                              => '0');
+        padding_M := (others => '0');
         opA       <= "0" & M & padding_M;
         opB       <= N;
-        opOut     <= (others                              => '0');
+        opOut     <= (others => '0');
       elsif execR2R = '1' then
         padding_shifts := (others => '0');
         opOut <= std_logic_vector(unsigned(opOut) +
@@ -142,40 +142,6 @@ end architecture arch;
 library ieee;
 use ieee.std_logic_1164.all,
   work.Amplitude_pac.Amplitude_multiplier;
-
---! @brief Wrapper on the Amplitude multiplier for post synthesis exports
---!
---! Since the amplifier is exported as a top level,
---!   the vectors should not be unconstrained.
---! This entity is designed to set the sizes.
---! It should not be called, for any reason, anywhere in the code
---!   as the sizes can be changed without notice.
---!
---! There is a problem with Yosys 0.50 or its dependencies, see in the vhdl file
---After setting sizes of the 3 vectors and default values of the 2 generics
---After deleting the wrapper
---After modifying the Makefile
---I got:
---
---ghdl -a --std=08 utils_package.vhdl
---ghdl -a --std=08 amplitude.vhdl
---mkdir -p CXX/
---yosys -m ghdl -p 'ghdl --std=08 Amplitude_multiplier; synth_ice40 -json Synth/amplitude_lowlevel.ice40.json' 2>&1 |tee Synth/amplitude_lowlevel.synth.out.txt
-
--- /----------------------------------------------------------------------------\
--- |  yosys -- Yosys Open SYnthesis Suite                                       |
--- |  Copyright (C) 2012 - 2025  Claire Xenia Wolf <claire@yosyshq.com>         |
--- |  Distributed under an ISC-like license, type "license" to see terms        |
--- \----------------------------------------------------------------------------/
--- Yosys 0.50 (git sha1 b5170e1394f602c607e75bdbb1a2b637118f2086, g++ 8.5.0 -fPIC -O3)
-
----- Running command `ghdl --std=08 Amplitude_multiplier; synth_ice40 -json Synth/amplitude_lowlevel.ice40.json' --
-
---1. Executing GHDL.
---amplitude.vhdl:93:3:(assert note): Lengths [6]x[6] gain: 1.0317460317460319, 4 shifts, gain is 9.710694806734645e-1, 5 shifts, gain is 1.0004886391399952, 6 shifts, gain is 1.0158769536095262
---Importing module Amplitude_multiplier.
---ERROR: Assert `GetSize(conn.first) == GetSize(conn.second)' failed in kernel/rtlil.cc:2602.
---! The downgrade to Yosys 0.43 fixed it
 
 entity Amplitude_multiplier_CXX_wrap is
   generic (
@@ -203,8 +169,8 @@ architecture arch of Amplitude_multiplier_CXX_wrap is
 begin
   instanc : Amplitude_multiplier
     generic map (
-      DAC_cycles      => 20,
-      Channels_number => 2)
+      MasterCLK_SampleCLK_ratio => 20,
+      Channels_number           => 2)
     port map (
       CLK     => CLK,
       load    => load,

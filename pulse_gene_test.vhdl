@@ -79,8 +79,8 @@ use ieee.std_logic_1164.all,
 
 entity Pulses_sequencer_test is
   generic (
-    chans_number : integer range 2 to 300 := 4;
-    DAC_cycles   : integer range 10 to 40 := 35
+    chans_number              : integer range 2 to 300 := 4;
+    MasterCLK_SampleCLK_ratio : integer range 10 to 40 := 35
     );
 end entity Pulses_sequencer_test;
 
@@ -116,9 +116,9 @@ begin
 
   Pulses_sequencer_instanc : Pulses_sequencer
     generic map(
-      chans_number     => chans_number,
-      DAC_cycles       => DAC_cycles,
-      has_extra_RAM_op => false
+      chans_number              => chans_number,
+      MasterCLK_SampleCLK_ratio => MasterCLK_SampleCLK_ratio,
+      has_extra_RAM_op          => false
       )
     port map(
       CLK           => CLK,

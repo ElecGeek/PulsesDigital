@@ -78,7 +78,7 @@ package Pulses_pac is
   component Pulses_DAC_wrapper is
     --! Tells the number of clock cycles available for a writing
     generic (
-      DAC_cycles : integer range 10 to 40
+      MasterCLK_SampleCLK_ratio : integer range 10 to 40
       );
     port (
       --! Master clock
@@ -124,11 +124,11 @@ package Pulses_pac is
   --!   * loop
   component Pulses_sequencer is
     generic (
-      chans_number : integer range 2 to 300 := 4;
-      DAC_cycles   : integer range 10 to 40;
-    --! Does one more RAM operation.
-    --! This is set by the bundle, and should be modified
-    has_extra_RAM_op : boolean := false
+      chans_number              : integer range 2 to 300 := 4;
+      MasterCLK_SampleCLK_ratio : integer range 10 to 40;
+      --! Does one more RAM operation.
+      --! This is set by the bundle, and should be modified
+      has_extra_RAM_op          : boolean                := false
       );
     port (
       --! Master clock
@@ -156,8 +156,8 @@ package Pulses_pac is
 --! TODO document the commands
   component Pulses_bundle is
     generic (
-      chans_number : integer range 2 to 300 := 4;
-      DAC_cycles   : integer range 10 to 40 := 24
+      chans_number              : integer range 2 to 300 := 4;
+      MasterCLK_SampleCLK_ratio : integer range 10 to 40 := 24
       );
     port (
       --! Master clock
