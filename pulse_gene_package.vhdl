@@ -161,11 +161,14 @@ package Pulses_pac is
       );
     port (
       --! Master clock
-      CLK      : in  std_logic;
-      RST      : in  std_logic;
+      CLK                : in  std_logic;
+      RST                : in  std_logic;
+      start              : in  std_logic;
+--! TEMPORARY
+      priv_amplitude_new : in  std_logic_vector (15 downto 0);
       --! TODO set the inputs amplitude and the volume
-      data_out : out std_logic_vector(chans_number - 1 downto 0);
-      transfer : out std_logic_vector(chans_number - 1 downto 0)
+      data_out           : out std_logic_vector(chans_number - 1 downto 0);
+      transfer           : out std_logic_vector(chans_number - 1 downto 0)
       );
   end component Pulses_bundle;
 
