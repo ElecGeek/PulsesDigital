@@ -1,7 +1,8 @@
 This is a FUN project to implement the pulse audio waveform of the MultiSIgnalGene.
+It is another way to do the things than the PulsesGene project.
 
 It is a VHDL version for ASIC or FPGA.
-
+In theory, it is one project to manage an unlimited number of channels.
 
 Only the VHDL and the tests are provided. There is no parts list nor PCB.
 
