@@ -27,6 +27,13 @@ package Pulses_pac is
   --! This is a pure combinatorial process
   --! The bundeler is responsible to latch the result
   component Pulses_stateMachine is
+    --! State machine
+    --!
+    --! The machine inputs the private state (per channel) and the start.
+    --! It should be stored from the previous sample without any modification.\n
+    --! The machine outputs the new state.
+    --! It is used both to be stored for the next sample and
+    --!   to be used to generate the output.
     generic (
       separ_pulses : positive := 1;
       pulse_length : positive := 10;
@@ -36,9 +43,19 @@ package Pulses_pac is
       RST              : in  std_logic;
       --! Enable: high only once to compute the new state
       start            : in  std_logic;
+      --! First pulse is negative not positive
+      polar_first      : in  std_logic;
+      --! From the output of the previous sample without any modification.
       priv_state_in    : in  std_logic_vector(3 downto 0);
+      --! From the output of the previous sample without any modification.
+      priv_polar_in    : in  std_logic;
+      --! From the output of the previous sample without any modification.
       priv_counter_in  : in  std_logic_vector;
+      --! Current state to generate the output value and to be stored.
       state_out        : out std_logic_vector(3 downto 0);
+      --! Current polarity to be passed to the DAC and to be stored
+      priv_polar_out   : out std_logic;
+      --! Internal counter to be stored only.
       priv_counter_out : out std_logic_vector
       );
   end component Pulses_stateMachine;
@@ -59,7 +76,6 @@ package Pulses_pac is
       req_amplitude     : in  std_logic_vector;
       state             : in  std_logic_vector(3 downto 0);
       --! Tells which polarity has to be update
-      polar_pos_not_neg : out std_logic;
       out_amplitude     : out std_logic_vector
       );
   end component Pulses_stateMOut;

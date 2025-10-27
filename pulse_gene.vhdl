@@ -9,17 +9,26 @@ use ieee.std_logic_1164.all,
 --! 
 entity Pulses_stateMachine is
   generic (
+    --! Delay between the positive and the negative pulse (or vice versa.
+    --! It should be at least one to send a 0 in case of a totem-pole output.
+    --! For more information, see in the DAC package.
     separ_pulses : positive := 1;
     pulse_length : positive := 10;
+    --! Delay before the next pulse.
+    --! It should be at least one to send a 0 in case of a totem-pole output.
+    --! The delay is always larger for other reasons.
     dead_time    : positive := 50
     );
   port (
     RST              : in  std_logic;
     --! Enable: high only once to compute the new state
     start            : in  std_logic;
+    polar_first      : in  std_logic;
     priv_state_in    : in  std_logic_vector(3 downto 0);
+    priv_polar_in    : in  std_logic;
     priv_counter_in  : in  std_logic_vector;
     state_out        : out std_logic_vector(3 downto 0);
+    priv_polar_out   : out std_logic;
     priv_counter_out : out std_logic_vector
     );
 end entity Pulses_stateMachine;
@@ -45,7 +54,7 @@ begin
   -- 1110 : 1/2 negative
   -- 1111 : 1/4 negative
   
-  state_proc : process(RST, start, priv_state_in, priv_counter_in) is
+  state_proc : process(RST, start, polar_first, priv_state_in, priv_polar_in, priv_counter_in) is
   begin
     STATE_CASE : case priv_state_in(1 downto 0) is
       when "00" =>
@@ -58,12 +67,19 @@ begin
           if priv_state_in(3 downto 2) /= "00" then
             -- Got to the next state
             state_out(1 downto 0) <= "01";
+            if priv_state_in(3 downto 2) = "10" then
+              priv_polar_out <= not priv_polar_in;
+            else
+              priv_polar_out <= priv_polar_in;
+            end if;
           elsif start = '1' then
             -- Ready and the start is requested
             state_out(1 downto 0) <= "01";
+            priv_polar_out        <= polar_first;
           else
             -- Wait
             state_out(1 downto 0) <= "00";
+            priv_polar_out        <= priv_polar_in;
           end if;
           state_out(3 downto 2) <= priv_state_in(3 downto 2);
           priv_counter_out      <= priv_counter_in;
@@ -71,11 +87,13 @@ begin
           -- The counter is not 0, wait (and decrease)
           state_out        <= priv_state_in;
           priv_counter_out <= std_logic_vector(unsigned(priv_counter_in) - 1);
+          priv_polar_out   <= priv_polar_in;
         end if;
       when "01" | "10" =>
         state_out(3 downto 2) <= priv_state_in(3 downto 2);
         state_out(1 downto 0) <= std_logic_vector(unsigned(priv_state_in(1 downto 0)) + 1);
         priv_counter_out      <= priv_counter_in;
+        priv_polar_out        <= priv_polar_in;
       when others =>
         -- Use others, rather than 11 to allow the start-up while simulating
         state_out(1 downto 0) <= "00";
@@ -90,6 +108,7 @@ begin
           state_out(3 downto 2) <= "00";
           priv_counter_out      <= std_logic_vector(to_unsigned(dead_time - 1, priv_counter_out'length));
         end if;
+        priv_polar_out <= priv_polar_in;
     end case STATE_CASE;
   end process state_proc;
 end architecture arch;
@@ -113,7 +132,6 @@ entity Pulses_stateMOut is
     req_amplitude     : in  std_logic_vector;
     state             : in  std_logic_vector(3 downto 0);
     --! Tells which polarity has to be update
-    polar_pos_not_neg : out std_logic;
     out_amplitude     : out std_logic_vector
     );
 end entity Pulses_stateMOut;
@@ -136,7 +154,6 @@ begin
     -- 10 : 1/2
     -- 11 : 3/4
     if rising_edge(CLK) then
-      polar_pos_not_neg <= state(3);
       if state(2) = '0' then
         output_rise_fall := state(1 downto 0);
       else
@@ -240,8 +257,8 @@ begin
           -- We are running the individual state machines
           case sequencer_state is
             when "001" | "101" =>
-              RAM_read <= '0';
-              EN_process <= '1';
+              RAM_read                                                            <= '0';
+              EN_process                                                          <= '1';
               sequencer_state(sequencer_state'low + 1 downto sequencer_state'low) <= "10";
             when "010" =>
               EN_process      <= '0';
@@ -503,7 +520,7 @@ entity Pulses_bundle is
 end entity Pulses_bundle;
 
 architecture arch of Pulses_bundle is
-  --! TODO TODO make the size dynamic
+  --! TODO TODO make the data size dynamic
   signal RST_delayed       : std_logic_vector(2 downto 0);
   --! Subject to move to generic
   constant counter_length  : integer range 2 to 20 := 8;
@@ -511,16 +528,19 @@ architecture arch of Pulses_bundle is
   signal priv_amplitude_in : std_logic_vector (15 downto 0);
   constant state_length    : positive              := 4;
   signal priv_state_S_2_A  : std_logic_vector(state_length - 1 downto 0);
+  signal priv_polar_S_2_A  : std_logic;
   signal priv_state_out    : std_logic_vector(state_length - 1 downto 0);
+  signal priv_polar_out    : std_logic;
 --  signal priv_amplitude_new : std_logic_vector(priv_amplitude_in'range);
 
   constant RAM_addr_size : positive := StateNumbers_2_BitsNumbers(chans_number+1);
   signal RAM_addr_high   : std_logic_vector(StateNumbers_2_BitsNumbers(chans_number+1) - 1 downto 0);
   signal RAM_addr_low    : std_logic_vector(0 downto 0);
   type state_RAM_elem is record
-    padding : std_logic_vector(priv_amplitude_in'length - state_length - counter_length - 1
+    padding : std_logic_vector(priv_amplitude_in'length - state_length - counter_length - 1 - 1
                                downto 0);
     state   : std_logic_vector(3 downto 0);
+    polar   : std_logic;
     counter : std_logic_vector(7 downto 0);
   end record state_RAM_elem;
   signal RAM_write_struct  : state_RAM_elem;
@@ -532,7 +552,6 @@ architecture arch of Pulses_bundle is
   signal RAM_write         : std_logic;
   signal EN_process        : std_logic;
   signal EN                : std_logic_vector(chans_number - 1 downto 0);
-  signal polar_pos_not_neg : std_logic;
   signal amplitude_for_DAC : std_logic_vector(15 downto 0);
   signal EN_out            : std_logic;
 begin
@@ -564,24 +583,27 @@ begin
           priv_state_S_2_A         <= (others => '0');
         elsif RAM_addr_low = "0" then
           -- Even words of the RAM
-          -- We collect the outpout of the state machine
+          -- We collect the output of the state machine
           --   to buffer it into the RAM write data.
           RAM_write_struct.padding <= (others => '0');
           RAM_write_struct.counter <= priv_counter_out;
           RAM_write_struct.state   <= priv_state_out;
+          RAM_write_struct.polar   <= priv_polar_out;
           -- We collect the state to be used by the pulse amplitude calculator
           priv_state_S_2_A         <= priv_state_out;
+          priv_polar_S_2_A         <= priv_polar_out;
         else
           -- Odd words of the RAM
           -- This time, there is a mapping to the data structure
           --   as we don't have the union type
           -- The amplitude is re written as it if
           --   a pulse cycle is currently running
-          -- The amplitude is the one supplied, which is ready to be "photographied"
+          -- The amplitude is the one supplied, which is ready to be "photographed"
           if priv_state_S_2_A = "0000" then
             -- Wait state or reset, we can accept new amplitude
-            RAM_write_struct.padding <= priv_amplitude_new(15 downto 12);
-            RAM_write_struct.state   <= priv_amplitude_new(11 downto 8);
+            RAM_write_struct.padding <= priv_amplitude_new(15 downto 13);
+            RAM_write_struct.state   <= priv_amplitude_new(12 downto 9);
+            RAM_write_struct.polar   <= priv_amplitude_new(8);
             RAM_write_struct.counter <= priv_amplitude_new(7 downto 0);
           else
             -- Running, keep the old amplitude
@@ -612,10 +634,11 @@ begin
 -- This runs on the second step of each channel
 --   (RAM_addr_low = '1'), then it takes the
 --   OUT of the state and the amplitude
---RAM_unioned(15 downto 12) <= RAM_read_struct.padding;
---RAM_unioned(11 downto 8)  <= RAM_read_struct.state;
+--RAM_unioned(15 downto 13) <= RAM_read_struct.padding;
+--RAM_unioned(12 downto 9)  <= RAM_read_struct.state;
+--RAM_unioned(8 downto 8)  <= RAM_read_struct.polar;
 --RAM_unioned(7 downto 0)   <= RAM_read_struct.counter;
-  RAM_unioned <= RAM_read_struct.padding & RAM_read_struct.state & RAM_read_struct.counter;
+  RAM_unioned <= RAM_read_struct.padding & RAM_read_struct.state & RAM_read_struct.polar & RAM_read_struct.counter;
 
   Pulses_stateMOut_instanc : Pulses_stateMOut
     port map(
@@ -623,13 +646,12 @@ begin
       RST               => RST,
       req_amplitude     => RAM_unioned,
       state             => priv_state_S_2_A,
-      polar_pos_not_neg => polar_pos_not_neg,
       out_amplitude     => amplitude_for_DAC
       );
 
   Pulses_stateMachine_instanc : Pulses_stateMachine
     generic map (
-      separ_pulses => 2,
+      separ_pulses => 1,
       pulse_length => 3,
       dead_time    => 4
       )
@@ -638,9 +660,12 @@ begin
       RST              => RST,
       --! Enable: high only once to compute the new state
       start            => start,
+      polar_first      => '0',
       priv_state_in    => RAM_read_struct.state,
+      priv_polar_in    => RAM_read_struct.polar,
       priv_counter_in  => RAM_read_struct.counter,
       state_out        => priv_state_out,
+      priv_polar_out   => priv_polar_out,
       priv_counter_out => priv_counter_out
       );
 
@@ -656,7 +681,7 @@ begin
         CLK               => CLK,
         RST               => RST,
         EN                => EN(ind),
-        polar_pos_not_neg => polar_pos_not_neg,
+        polar_pos_not_neg => priv_polar_S_2_A,
         in_amplitude      => amplitude_for_DAC,
         EN_out            => EN_out,
         DAC_data          => data_out(ind),

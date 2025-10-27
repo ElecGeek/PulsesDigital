@@ -20,20 +20,22 @@ architecture arch of Pulses_lowlevel_test is
   signal state_out           : std_logic_vector(3 downto 0);
   signal priv_counter_in     : std_logic_vector(10 downto 0)                 := (others        => '0');
   signal priv_counter_out    : std_logic_vector(10 downto 0)                 := (others        => '0');
+  signal priv_polar_in       : std_logic;
+  signal priv_polar_out       : std_logic;
   signal priv_counter_loaded : boolean                                       := false;
   signal req_amplitude       : std_logic_vector(size_amplitude - 1 downto 0) := ("111", others => '0');
   signal out_amplitude       : std_logic_vector(size_amplitude - 1 downto 0);
-  signal polar_pos_not_neg   : std_logic;
 begin
   RST <= state_id(state_id'high);
 
-  -- The entity under test is a pure combinatory
+  -- The entity under test is a pure combinatorial
   state_proc : process is
   begin
     end_sim : if state_id /= state_id_max then
       if CLK = '1' then
         priv_counter_loaded <= priv_counter_out = std_logic_vector(to_unsigned(0, priv_counter_out'length));
         priv_counter_in     <= priv_counter_out;
+        priv_polar_in       <= priv_polar_out;
         if priv_counter_loaded or RST = '1' then
           state_id <= state_id + 1;
         end if;
@@ -51,7 +53,6 @@ begin
       RST               => RST,
       req_amplitude     => req_amplitude,
       state             => std_logic_vector(state_id(state_id'low + 3 downto state_id'low)),
-      polar_pos_not_neg => polar_pos_not_neg,
       out_amplitude     => out_amplitude
       );
 
@@ -65,10 +66,13 @@ begin
       RST              => RST,
       --! Enable: high only once to compute the new state
       start            => '1',
+      polar_first      => '0',
       priv_state_in    => std_logic_vector(state_id(state_id'low + 3 downto state_id'low)),
       priv_counter_in  => priv_counter_in,
+      priv_polar_in    => priv_polar_in,
       state_out        => state_out,
-      priv_counter_out => priv_counter_out
+      priv_counter_out => priv_counter_out,
+      priv_polar_out   => priv_polar_out
       );
 end architecture arch;
 
