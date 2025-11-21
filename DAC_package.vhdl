@@ -9,7 +9,10 @@ use ieee.std_logic_1164.all,
 --! Since all the project is synchronous and all the DAC are identical,
 --!   the DAC CLK, transfer, update etc... signals are common for all the DACs.
 --! However, for PCB drawing, more line can be requested.
---! Each control lines are an unconstrained vector to manage the PCB.\n
+--! Each control lines are an unconstrained vector to manage
+--!   the number of required pins of the PCB.
+--!   Especially for the FPGA, DACs can be connected to different IO banks.
+--!   It is always a good idea to fetch the data and the control from the same one.\n
 --! There are two possible modes:\n
 --! * The single output is one DAC output per channel
 --!   The DACs can be single, dual, triple etc...
@@ -26,64 +29,58 @@ use ieee.std_logic_1164.all,
 --!   for test purpose.
 --! They may content some relevant common documentation.
 
-package DAC_package_t is
-  --!
-  generic (
-    --! Mode one per output or totem-pole ( 2 per output )
-    mode_totempole             : boolean;
-    --! Number of channels of the design using this DAC package.
-    channels_number            : integer range 2 to 300;
-    --! Size of the data, except the sign, passed to the DAC
-    --! It may be different from the DAC data size.
-    --! In such case, the data is cut or is barrel shifted.
-    data_size                  : integer range 4 to 64;
-    --! The data size of the DAC may or may not be the same as
-    --!   the internal calculation size.
-    --! In case of a longueur one, the bits are barrel shifted to fill up.
-    --! In case of a shorter one, the bits are cut.
-    DAC_data_size              : integer range 4 to 50;
-    nbre_DACs_used             : integer range 1 to 64;
-    --! Most serial DACs have a command of about 4 bits,
-    --!   followed by the number of bits.
-    --! Many DACs exists in 3 versions such as 8, 10 or 12 bits,
-    --!   or 12, 14 or 16 bits. It is recommended to set the highest one
-    --!   in case the chosen DAC is out of order.
-    --! Some additional bits have to be consider for the protocol.
-    --! In case of a multiple output, all of this is multiplied by the number
-    --!   of outputs divided by 2.
-    MasterCLK_SampleCLK_ratio  : integer range 14 to 100 := 22;
-    --! TODO handle more values such as 1
-    --! However that can cause propagation delay problems
-    MasterCLK_DACCLK_ratio     : integer range 2 to 2    := 2;
-    --! Since it is the totem-pole, no digital negation has to be done.
-    --! To keep the same "footprint" for configuration purposes,
-    --!   the generic is defined.
-    --! However, it is ignored and set to false by default
-    Negation_fast_not_accurate : boolean                 := false);
-    --! Number of outputs per DAC.
-    --! In case of a totem-pole, the real DAC should have twice this number.
-  constant nbre_outputs_per_DAC : natural :=       channels_number    / nbre_DACs_used;
+package DAC_package is
+  --! This work around is going to be used until I install a version of GHDL
+  --! that fixes the 3102 issue.
+  constant mode_totempole             : boolean  := false;
+  constant channels_number            : positive := 4;
+  constant data_size                  : positive := 4;
+  constant DAC_data_size              : positive := 6;
+  constant nbre_DACS_used             : positive := 1;
+  constant MasterCLK_SampleCLK_ratio  : positive := 22;
+  constant MasterCLK_DACCLK_ratio     : positive := 2;
+  constant Negation_fast_not_accurate : boolean  := true;
+--  generic (
+  --! Mode one per output or totem-pole ( 2 per output )
+--    mode_totempole             : boolean := false;
+  --! Number of channels of the design using this DAC package.
+--    channels_number            : integer range 2 to 300 := 4;
+  --! Size of the data, except the sign, passed to the DAC
+  --! It may be different from the DAC data size.
+  --! In such case, the data is cut or is barrel shifted.
+--    data_size                  : integer range 4 to 64 := 12;
+  --! The data size of the DAC may or may not be the same as
+  --!   the internal calculation size.
+  --! In case of a longueur one, the bits are barrel shifted to fill up.
+  --! In case of a shorter one, the bits are cut.
+  --   DAC_data_size              : integer range 4 to 50 := 8;
+  --   nbre_DACs_used             : integer range 1 to 64 := 1;
+  --! Most serial DACs have a command of about 4 bits,
+  --!   followed by the number of bits.
+  --! Many DACs exists in 3 versions such as 8, 10 or 12 bits,
+  --!   or 12, 14 or 16 bits. It is recommended to set the highest one
+  --!   in case the chosen DAC is out of order.
+  --! Some additional bits have to be consider for the protocol.
+  --! In case of a multiple output, all of this is multiplied by the number
+  --!   of outputs divided by 2.
+--    MasterCLK_SampleCLK_ratio  : integer range 14 to 100 := 22;
+  --! TODO handle more values such as 1
+  --! However that can cause propagation delay problems
+--    MasterCLK_DACCLK_ratio     : integer range 2 to 2 := 2;
+  --! Since it is the totem-pole, no digital negation has to be done.
+  --! To keep the same "footprint" for configuration purposes,
+  --!   the generic is defined.
+  --! However, it is ignored and set to false by default
+--    Negation_fast_not_accurate : boolean  := true );
 
+
+  --! Number of outputs per DAC.
+  --! In case of a totem-pole, the real DAC should have twice this number.
+  constant nbre_outputs_per_DAC : natural := channels_number / nbre_DACs_used;
+  
 --! This is the default in order to perform tests faster
   --! The goal is to get all the outputs in parallel.
   component DAC_bundle_dummy is
-    generic (
-      --! The data size of the DAC may or may not be the same as
-      --!   the internal calculation size.
-      --! In case of a longueur one, the bits are barrel shifted to fill up.
-      --! In case of a shorter one, the bits are cut.
-      DAC_data_size              : integer range 4 to 50;
-      --! Even without output, there are a minimum of clock cycles
-      --!   to process 2 SRAM read and SRAM write and one state machine process.
-      MasterCLK_SampleCLK_ratio  : integer range 14 to 100 := 22;
-      --! Don't care, the outputs are not used.
-      MasterCLK_DACCLK_ratio     : integer range 2 to 2    := 2;
-      --! To get the negative of a number, the 2'nd complement requires
-      --!   to toggle the bits and to add 1.
-      --! The addition is not that relevant and consume resources.
-      --! It is omitted for faster simulation
-      Negation_fast_not_accurate : boolean
-      );
     port(
       CLK               : in  std_logic;
       polar_pos_not_neg : in  std_logic;
@@ -104,16 +101,19 @@ package DAC_package_t is
       transfer_serial   : out std_logic_vector;
       --! Not used
       update_serial     : out std_logic_vector
-      );      
-
+      );
   end component DAC_bundle_dummy;
+
+
   --! The one output per channel requires a single DAC or a multiple DAC
   --! However, in the case of multiple, the master clock on the sample rate ratio
-  --!   have to be higher, as there are N data to pass.\n
-  --! The unsigned value is updated according with the polarity bit.
+  --!   have to be higher, as there are N data to pass.
+  --! The unsigned value is updated according with the polarity bit.\n
 
   --! The totem-pole output requires a DAC with an even number of outputs.
   --! The half is the positive outputs set, the other is the negative set.\n
+  --! A restriction is the positive is always connected to the even outputs
+  --!   while the negative one to the odd outputs.\n
   --! The pulse state machine has to always send a 0 at the end of each polarity,
   --!   as this component updates only one polarity value.
   --! This is an hard assume of the state-machine.
@@ -144,7 +144,7 @@ package DAC_package_t is
       --! This may or may not be used as many DACs have a write and update command.
       --! TODO check it is possible at the top level to define a 0 down-to 1 vector
       update_serial     : out std_logic_vector
-      );      
+      );
   end component DAC_bundle_real_outputs;
 
   --! This component is private to the bundle.\n.
@@ -158,21 +158,29 @@ package DAC_package_t is
   --! This type intended take and scroll or to force a value.
   --! For debug purposes, a don't care can be sent when no data is relevant.\n
   --! 000= run and scroll data, 001=run and scroll DAC address
-  --! 100= force 0, 101= force 1, 110= force don't care,
+  --! 01a= load the working registers from the buffers, while forcing to a the output.
+  --! Since the DAC requires a command, sending 0's or 1's can be done
+  --!   at the same time the polarity is processed and the working registers are loaded.
+  --! 10b= force b, 110= force don't care,
+  --! 111= force error. Check the comments in the case? of the Buffer_and_working_registers.\n
+  --! Don't change the range without a full code review
   subtype registers_control_st is std_logic_vector(2 downto 0);
 
   --! This component is private to the bundle.\n.
   --! DOC TODO
   --! In case of full scale output, the polarity/sign has to be computed.\n
-  --! In case of totem-pole, the controller addresses one or the other output.
-  --! Then the value are always positive, and not divided by 2.
+  --! In case of totem-pole, the controller addresses one or the other output..
   component Buffer_and_working_registers is
+    generic (
+      --! Used for multiple output DACs, to generate the index for some debug notes
+      register_position : natural;
+      --! Used for multiple DACs, to generate its index for some debug notes      
+      DAC_chain_number  : natural);
     port (
       CLK                : in  std_logic;
-      --! If compute_sign is true, the value is divided by 2
-      --!   and the sign is inserted.
-      --! If compute_sign is false, the value is left untouched,
-      --!   regardless polar_pos_not_neg.
+      --! The data values are always sent to the DAC component as
+      --! a sign and a value.
+      --! The process depends if the mode is totempole or not.
       polar_pos_not_neg  : in  std_logic;
       data_in            : in  std_logic_vector(data_size - 1 downto 0);
       data_strobe        : in  std_logic;
@@ -189,7 +197,7 @@ package DAC_package_t is
       --! this send the data to the next register,
       --! without passing throw the last buffer.     
       chain_data_out     : out std_logic;
-      --! similar of chaind_data_out but for the polarity,
+      --! similar of chain_data_out but for the polarity,
       --! used only in totem-pole mode
       chain_polarity_out : out std_logic;
       --! Data out for one DAC, only the first in chain is used.
@@ -205,42 +213,39 @@ package DAC_package_t is
   --!   send $c followed by the value.\n
   --! The generic data_register_size is used to configure the component.
   --! However, for many DACs, it is fix.
-  --! In such case, the generic is only to verify the design is correct.\n
+  --! Then the size in a real controller is, in general void.
+  --! For this default component, it is mostly used for test and validation,
+  --! as the size can be greater or lower of the data size supplied.\n
   --! Since the control outputs passe through the register component,
   --!   some care should be taken on the latencies.
   component Controler_default is
     port (
-      CLK             : in  std_logic;
-      RST_init        : in  std_logic;
-      start           : in  std_logic;
-      --! The controller can take the control of is sent
-      --!   or let the working registers do that.
-      get_control     : out std_logic;
-      --! In case the control gets the control, this is
-      --! the value.
-      val_control     : out std_logic;
-      CLK_serial      : out std_logic;
-      transfer_serial : out std_logic;
-      update_serial   : out std_logic
+      CLK               : in  std_logic;
+      RST_init          : in  std_logic;
+      start             : in  std_logic;
+      --! See in the type definition
+      registers_control : out registers_control_st;
+      CLK_serial        : out std_logic;
+      transfer_serial   : out std_logic;
+      update_serial     : out std_logic
       );
   end component Controler_default;
-end package DAC_package_t;
+--end package DAC_package_t;
+end package DAC_package;
+-- This should move into a configuration file
 
+-- library ieee;
+-- use ieee.std_logic_1164.all,
+--   ieee.numeric_std.all;
 
---! This should move into a configuration file
-
-library ieee;
-use ieee.std_logic_1164.all,
-  ieee.numeric_std.all;
-
-package DAC_package is
-  new work.DAC_package_t generic map (
-    mode_totempole             => false,
-    channels_number            => 4,
-    data_size                  => 12,
-    DAC_data_size              => 8,
-    nbre_DACS_used             => 1,
-    MasterCLK_SampleCLK_ratio  => 22,
-    MasterCLK_DACCLK_ratio     => 2,
-    Negation_fast_not_accurate => true);
+-- package DAC_package is
+--   new work.DAC_package_t generic map (
+--     mode_totempole             => false,
+--     channels_number            => 4,
+--     data_size                  => 12,
+--     DAC_data_size              => 8,
+--     nbre_DACS_used             => 1,
+--     MasterCLK_SampleCLK_ratio  => 22,
+--     MasterCLK_DACCLK_ratio     => 2,
+--     Negation_fast_not_accurate => true);
 
