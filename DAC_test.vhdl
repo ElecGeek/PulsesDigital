@@ -32,9 +32,29 @@ architecture arch of DAC_test is
   signal RST                 : unsigned(20 downto 0) := (others => '1');
   signal the_start           : std_logic;
   signal data_serial         : std_logic_vector (8 downto 8);
-  signal CLK_serial          : std_logic_vector (0 downto 1);
-  signal transfer_serial     : std_logic_vector (5 downto 6);
-  signal update_serial       : std_logic_vector (5 downto 6);
+  signal CLK_serial          : std_logic_vector (4 downto 2);
+  signal transfer_serial     : std_logic_vector (5 downto 5);
+  signal update_serial       : std_logic_vector (5 downto 5);
+
+  component DAC_simul is
+    generic(
+      idle_bits            : natural               := 2;
+      write_and_update_cmd : std_logic_vector(1 downto 0) := "01";
+      write_only_cmd       : std_logic_vector(1 downto 0) :="11";
+      address_size         : positive              := 2;
+      DAC_numbers          : positive              := 4;
+      --! This generic has 2 purposes:
+      --! * set the size of the data registers.
+      --! * consider as canceled if the transfer_serial return early to high
+      data_bits            : integer range 4 to 30 := 12
+      );
+    port(
+      data_serial     : in std_logic;
+      CLK_serial      : in std_logic;
+      transfer_serial : in std_logic;
+      update_serial   : in std_logic
+      );
+  end component DAC_simul;
 
 begin
 
@@ -103,6 +123,15 @@ begin
       );
 
 
+  DAC_simul_instanc : DAC_simul
+    port map(
+      data_serial => data_serial(data_serial'low),
+      CLK_serial => CLK_serial( CLK_serial'low),
+      transfer_serial => transfer_serial(transfer_serial'low),
+      update_serial => update_serial(update_serial'low)
+      );
+
+
 end architecture arch;
 
 
@@ -112,6 +141,16 @@ configuration DAC_default_controler of DAC_test is
     for DAC_bundle_instanc : DAC_bundle_dummy
       use entity work.DAC_bundle_real_outputs;
     end for;
+    for DAC_simul_instanc : DAC_simul
+      use entity work.DAC_simul_model_1
+        generic map (
+          idle_bits            => 0,
+          write_and_update_cmd => "01",
+          write_only_cmd       => "10",
+          address_size         => 2,
+          DAC_numbers          => 4,
+          data_bits            => 6);
+    end for;
   end for;
-
 end configuration DAC_default_controler;
+

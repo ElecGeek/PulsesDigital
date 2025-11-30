@@ -13,6 +13,17 @@ NEXTPNR-ICE40_PROG?=nextpnr-ice40
 ICEPACK?=icepack
 
 
+DAC_simul : $(SCRDIR)DAC.vhdl $(SCRDIR)DAC_test.vhdl $(SCRDIR)DAC_package.vhdl $(SCRDIR)DAC_configure.vhdl $(SRCDIR)DAC_emulators.vhdl
+	rm -f work-obj08.cf
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC.vhdl
+#	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_configure.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_emulators.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_test.vhdl
+	$(GHDL_PROG) -e $(VFLAGS) DAC_default_controler
+#	$(GHDL_PROG) -e $(VFLAGS) DAC_test
+	$(GHDL_PROG) -r $(VFLAGS) DAC_default_controler --vcd=$(WAVDESTDIR)DAC_test.wav 2>&1 | tee $(DESTDIR)DAC_test.out.txt
+#	$(GHDL_PROG) -r $(VFLAGS) DAC_test --vcd=$(WAVDESTDIR)DAC_test.wav 2>&1 | tee $(DESTDIR)DAC_test.out.txt
 # There are many small and fast entities to simulate
 # Then they are together 
 pulse_parts_simul : $(SCRDIR)pulse_gene.vhdl $(SCRDIR)pulse_gene_test.vhdl $(SCRDIR)utils_package.vhdl $(SCRDIR)pulse_gene_package.vhdl 
@@ -73,6 +84,16 @@ pulse_gene_low_level_synth : $(SCRDIR)pulse_gene.vhdl $(SCRDIR)pulse_gene_test.v
 	$(YOSYS_PROG) -m ghdl -p '$(GHDL_PROG) $(VFLAGS) Pulses_bundle; synth_ice40 -json $(SYNTHDESTDIR)pulse_gene_lowlevel.ice40.json' 2>&1 |tee $(SYNTHDESTDIR)pulse_gene_lowlevel.synth.out.txt
 	$(NEXTPNR-ICE40_PROG) --hx4k --package tq144 --freq 30.00 --top Pulses_bundle --asc $(SYNTHDESTDIR)pulse_gene_lowlevel.asc --json $(SYNTHDESTDIR)pulse_gene_lowlevel.ice40.json --placed-svg $(SYNTHDESTDIR)pulse_gene_lowlevel.placed.svg --routed-svg $(SYNTHDESTDIR)pulse_gene_lowlevel.routed.svg --report $(SYNTHDESTDIR)pulse_gene_lowlevelc.report.json 2>&1 |tee $(SYNTHDESTDIR)pulse_gene_lowlevel.P_and_R.out.txt
 	$(ICEPACK) $(SYNTHDESTDIR)pulse_gene_lowlevel.asc $(SYNTHDESTDIR)pulse_gene_lowlevel.bin 2>&1 |tee $(SYNTHDESTDIR)pulse_gene_lowlevel.pack.out.txt
+
+amplitude_low_level_synth : $(SCRDIR)amplitude.vhdl $(SCRDIR)amplitude_test.vhdl $(SCRDIR)utils_package.vhdl $(SCRDIR)amplitude_package.vhdl 
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude.vhdl
+	mkdir -p $(SYNTHDESTDIR)
+	$(YOSYS_PROG) -m ghdl -p '$(GHDL_PROG) $(VFLAGS) Amplitude_multiplier_CXX_wrap; synth_ice40 -json $(SYNTHDESTDIR)amplitude_lowlevel.ice40.json' 2>&1 |tee $(SYNTHDESTDIR)amplitude_lowlevel.synth.out.txt
+	$(NEXTPNR-ICE40_PROG) --hx4k --package tq144 --freq 30.00 --top Amplitude_multiplier_CXX_wrap --asc $(SYNTHDESTDIR)amplitude_lowlevel.asc --json $(SYNTHDESTDIR)amplitude_lowlevel.ice40.json --placed-svg $(SYNTHDESTDIR)amplitude_lowlevel.placed.svg --routed-svg $(SYNTHDESTDIR)amplitude_lowlevel.routed.svg --report $(SYNTHDESTDIR)amplitude_lowlevelc.report.json 2>&1 |tee $(SYNTHDESTDIR)amplitude_lowlevel.P_and_R.out.txt
+	$(ICEPACK) $(SYNTHDESTDIR)amplitude_lowlevel.asc $(SYNTHDESTDIR)amplitude_lowlevel.bin 2>&1 |tee $(SYNTHDESTDIR)amplitude_lowlevel.pack.out.txt
+
 
 # --hx4k --lp384
 # package cm225 qn32
