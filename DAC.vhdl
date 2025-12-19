@@ -459,8 +459,12 @@ begin  -- architecture arch
               -- Since there is a one bit latch (in the register component)
               -- after the selector 0, 1, -, data, address the transfer is delayed
               transfer_serial   <= '0';
-              registers_control <= "100";
-            when 2 =>
+              if address_counter /= address_counter_max then
+                registers_control <= "100"; 
+              else
+                registers_control <= "101";
+              end if;
+           when 2 =>
               registers_control(2 downto 1) <= "10";
               registers_control(0)          <= address_bits(1);
             when 3 =>

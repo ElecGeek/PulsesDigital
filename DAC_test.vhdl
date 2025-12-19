@@ -145,7 +145,7 @@ configuration DAC_default_controler of DAC_test is
       use entity work.DAC_simul_model_1
         generic map (
           idle_bits            => 0,
-          write_and_update_cmd => "01",
+          write_and_update_cmd => "11",
           write_only_cmd       => "10",
           address_size         => 2,
           DAC_numbers          => 4,

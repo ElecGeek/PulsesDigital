@@ -17,14 +17,14 @@ use ieee.std_logic_1164.all,
 entity DAC_simul_model_1 is
   generic(
     idle_bits            : natural               := 2;
-    write_and_update_cmd : std_logic_vector              := "00";
-    write_only_cmd       : std_logic_vector              := "11";
+    write_and_update_cmd : std_logic_vector              := "11";
+    write_only_cmd       : std_logic_vector              := "10";
     address_size         : positive              := 2;
     DAC_numbers          : positive              := 4;
     --! This generic has 2 purposes:
     --! * set the size of the data registers.
     --! * consider as canceled if the transfer_serial return early to high
-    data_bits            : integer range 4 to 30 := 12
+    data_bits            : integer range 4 to 30 := 6
     );
   port(
     data_serial     : in std_logic;
@@ -70,20 +70,20 @@ begin
           if serial_counter < idle_bits then
             serial_counter <= serial_counter + 1;
           elsif serial_counter < (idle_bits + write_and_update_cmd'length) then
-            command_register(command_register'high - 1 downto command_register'low) <=
-              command_register(command_register'high downto command_register'low + 1);
+            command_register(command_register'high downto command_register'low + 1) <=
+              command_register(command_register'high - 1 downto command_register'low);
             command_register(command_register'low) <= data_serial;
 
             serial_counter <= serial_counter + 1;
           elsif serial_counter < (idle_bits + write_and_update_cmd'length + address_size) then
-            address_register(address_register'high - 1 downto address_register'low) <=
-              address_register(address_register'high downto address_register'low + 1);
+            address_register(address_register'high downto address_register'low + 1) <=
+              address_register(address_register'high - 1 downto address_register'low);
             address_register(address_register'low) <= data_serial;
 
             serial_counter <= serial_counter + 1;
           elsif serial_counter < (idle_bits + write_and_update_cmd'length + address_size + data_bits) then
-            working_register(working_register'high - 1 downto working_register'low) <=
-              working_register(working_register'high downto working_register'low + 1);
+            working_register(working_register'high downto working_register'low + 1) <=
+              working_register(working_register'high - 1 downto working_register'low);
             working_register(working_register'low) <= data_serial;
 
             serial_counter <= serial_counter + 1;
