@@ -16,9 +16,8 @@ use ieee.std_logic_1164.all,
 --!   Additional bits are ignored.
 entity DAC_simul_model_1 is
   generic(
-    idle_bits            : natural               := 2;
-    write_and_update_cmd : std_logic_vector              := "11";
-    write_only_cmd       : std_logic_vector              := "10";
+    write_and_update_cmd : std_logic_vector;
+    write_only_cmd       : std_logic_vector;
     address_size         : positive              := 2;
     DAC_numbers          : positive              := 4;
     --! This generic has 2 purposes:
@@ -38,7 +37,7 @@ end entity DAC_simul_model_1;
 
 architecture arch of DAC_simul_model_1 is
   constant total_message_length : positive :=
-    idle_bits + write_and_update_cmd'length + address_size + data_bits;
+    write_and_update_cmd'length + address_size + data_bits;
   signal serial_counter   : natural;
   signal command_register : std_logic_vector(write_and_update_cmd'length - 1 downto 0);
   signal address_register : std_logic_vector(address_size -1 downto 0);
@@ -67,21 +66,19 @@ begin
     if falling_edge(CLK_serial) then
       TRANSF_IF : if transfer_serial = '0' then
         if serial_counter < total_message_length then
-          if serial_counter < idle_bits then
-            serial_counter <= serial_counter + 1;
-          elsif serial_counter < (idle_bits + write_and_update_cmd'length) then
+          if serial_counter < write_and_update_cmd'length then
             command_register(command_register'high downto command_register'low + 1) <=
               command_register(command_register'high - 1 downto command_register'low);
             command_register(command_register'low) <= data_serial;
 
             serial_counter <= serial_counter + 1;
-          elsif serial_counter < (idle_bits + write_and_update_cmd'length + address_size) then
+          elsif serial_counter < (write_and_update_cmd'length + address_size) then
             address_register(address_register'high downto address_register'low + 1) <=
               address_register(address_register'high - 1 downto address_register'low);
             address_register(address_register'low) <= data_serial;
 
             serial_counter <= serial_counter + 1;
-          elsif serial_counter < (idle_bits + write_and_update_cmd'length + address_size + data_bits) then
+          elsif serial_counter < (write_and_update_cmd'length + address_size + data_bits) then
             working_register(working_register'high downto working_register'low + 1) <=
               working_register(working_register'high - 1 downto working_register'low);
             working_register(working_register'low) <= data_serial;
@@ -92,10 +89,10 @@ begin
       elsif serial_counter = total_message_length then
         -- The trnasfert is negated but the message is complete
         data_register_v := written_data;
-        if ( command_register = write_only_cmd) or (command_register = write_and_update_cmd) then
+        if std_match(command_register, write_only_cmd) or std_match(command_register, write_and_update_cmd) then
           data_register_v(to_integer(unsigned(address_register))) := unsigned( working_register );
         end if;
-        if command_register = write_and_update_cmd then
+        if std_match(command_register, write_and_update_cmd) then
 -- If you have GHW, uncomment this line and comment out the following
 --          uploaded_data <= data_register_v;
           uploaded_data_0 <= data_register_v(0);

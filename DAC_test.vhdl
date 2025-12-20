@@ -1,6 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all,
   ieee.numeric_std.all,
+  work.Utils_pac.StateNumbers_2_BitsNumbers,
   work.DAC_package.all;
 
 entity DAC_test is
@@ -10,15 +11,21 @@ end entity DAC_test;
 
 
 architecture arch of DAC_test is
-  signal CLK                    : std_logic                                   := '0';
-  -- The DAC data size is added by 1 in order to include the protocol and the command
-  signal DAC_counter            : unsigned(DAC_data_size + 1 - 1 downto 0)    := (others => '0');
-  signal DAC_counter_max        : unsigned(DAC_counter'range)                 := (others => '1');
+  signal CLK : std_logic := '0';
+  -- We assume here:
+  --   the command size is no longuer than 8,
+  --   the 3 extra states (as in the controler)
+  --   4 more idles states to improve readability using a wave viewer
+  -- Since it is for testing
+  signal DAC_counter : unsigned(StateNumbers_2_BitsNumbers(
+    channels_number * (8 + DAC_data_size + 3 + 4)) - 1 downto 0) := (others => '0');
+  signal DAC_counter_max        : unsigned(DAC_counter'range) := (others => '1');
   -- TODO compute the minimum number of bits accroding with the channel size
-  constant channel_counter_bits : positive                                    := 2;  -- 2 for 4 channels
+  constant channel_counter_bits : natural :=
+    StateNumbers_2_BitsNumbers(nbre_outputs_per_DAC);
   -- The channel counter selects which one is to set and the shifts of the data
-  signal channel_counter        : unsigned(channel_counter_bits - 1 downto 0) := (others => '0');
-  signal channel_counter_max    : unsigned(channel_counter'range) :=
+  signal channel_counter     : unsigned(channel_counter_bits - 1 downto 0) := (others => '0');
+  signal channel_counter_max : unsigned(channel_counter'range) :=
     to_unsigned(channels_number - 1, channel_counter'length);
   -- The data size is added by 1 in order to have a "carry" bit
   -- The data size is added by 2 in order to have 4 windows for 4 channels
@@ -38,11 +45,10 @@ architecture arch of DAC_test is
 
   component DAC_simul is
     generic(
-      idle_bits            : natural               := 2;
-      write_and_update_cmd : std_logic_vector(1 downto 0) := "01";
-      write_only_cmd       : std_logic_vector(1 downto 0) :="11";
-      address_size         : positive              := 2;
-      DAC_numbers          : positive              := 4;
+      write_and_update_cmd : std_logic_vector;
+      write_only_cmd       : std_logic_vector;
+      address_size         : positive              := 10;
+      DAC_numbers          : positive              := 10;
       --! This generic has 2 purposes:
       --! * set the size of the data registers.
       --! * consider as canceled if the transfer_serial return early to high
@@ -71,10 +77,14 @@ begin
       RST(RST'high)                    <= '0';
       CLK_IF : if CLK = '1' then
         if DAC_counter = to_unsigned(0, DAC_counter'length) then
-          DAC_counter                                      <= to_unsigned(1, DAC_counter'length);
-          EN_var                                           := (others => '0');
-          EN_var(EN_var'low + to_integer(channel_counter)) := '1';
-          EN                                               <= EN_var;
+          DAC_counter <= to_unsigned(1, DAC_counter'length);
+          EN_var      := (others => '0');
+          if channel_counter'length > 0 then
+            EN_var(EN_var'low + to_integer(channel_counter)) := '1';
+          else
+            EN_var(EN_var'low) := '1';
+          end if;
+          EN <= EN_var;
         elsif DAC_counter = to_unsigned(1, DAC_counter'length) then
           DAC_counter <= to_unsigned(2, DAC_counter'length);
           EN          <= (others => '0');
@@ -87,15 +97,25 @@ begin
                                         -- Get the sign
           polar_pos_not_neg <= data_counter(data_counter'high - 1);
                                         -- Get the data while shifting according to the current channel number
-          data_absolute_value <= std_logic_vector(
-            data_counter(data_counter'low + to_integer(channel_counter) + data_absolute_value'length - 1 downto
-                         data_counter'low + to_integer(channel_counter)));
-                                        -- Increment the upper level
-          if channel_counter /= channel_counter_max then
-            channel_counter <= channel_counter + 1;
+          if channel_counter'length > 0 then
+            data_absolute_value <= std_logic_vector(
+              data_counter(data_counter'low + to_integer(channel_counter) + data_absolute_value'length - 1 downto
+                           data_counter'low + to_integer(channel_counter)));
           else
-            channel_counter <= (others => '0');
-            data_counter    <= data_counter + 1;
+            data_absolute_value <= std_logic_vector(
+              data_counter(data_counter'low + data_absolute_value'length - 1 downto
+                           data_counter'low));
+          end if;
+          if channel_counter'length > 0 then
+                                        -- Increment the upper level
+            if channel_counter /= channel_counter_max then
+              channel_counter <= channel_counter + 1;
+            else
+              channel_counter <= (others => '0');
+              data_counter    <= data_counter + 1;
+            end if;
+          else
+            data_counter <= data_counter + 1;
           end if;
         end if;
       end if CLK_IF;
@@ -124,11 +144,14 @@ begin
 
 
   DAC_simul_instanc : DAC_simul
+    generic map (
+      write_and_update_cmd => "000",
+      write_only_cmd       => "000")
     port map(
-      data_serial => data_serial(data_serial'low),
-      CLK_serial => CLK_serial( CLK_serial'low),
+      data_serial     => data_serial(data_serial'low),
+      CLK_serial      => CLK_serial(CLK_serial'low),
       transfer_serial => transfer_serial(transfer_serial'low),
-      update_serial => update_serial(update_serial'low)
+      update_serial   => update_serial(update_serial'low)
       );
 
 
@@ -144,9 +167,8 @@ configuration DAC_default_controler of DAC_test is
     for DAC_simul_instanc : DAC_simul
       use entity work.DAC_simul_model_1
         generic map (
-          idle_bits            => 0,
-          write_and_update_cmd => "11",
-          write_only_cmd       => "10",
+          write_and_update_cmd => "--10",
+          write_only_cmd       => "--11",
           address_size         => 2,
           DAC_numbers          => 4,
           data_bits            => 6);

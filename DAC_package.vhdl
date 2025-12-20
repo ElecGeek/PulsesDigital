@@ -32,12 +32,12 @@ use ieee.std_logic_1164.all,
 package DAC_package is
   --! This work around is going to be used until I install a version of GHDL
   --! that fixes the 3102 issue.
-  constant mode_totempole             : boolean  := false;
-  constant channels_number            : positive := 4;
+  constant mode_totempole             : boolean  := true;
+  constant channels_number            : positive := 1;
   constant data_size                  : positive := 4;
-  constant DAC_data_size              : positive := 6;
+  constant DAC_data_size              : positive := 8;
   constant nbre_DACS_used             : positive := 1;
-  constant MasterCLK_SampleCLK_ratio  : positive := 22;
+  constant MasterCLK_SampleCLK_ratio  : positive := 40;
   constant MasterCLK_DACCLK_ratio     : positive := 2;
   constant Negation_fast_not_accurate : boolean  := true;
 --  generic (
@@ -49,10 +49,13 @@ package DAC_package is
   --! It may be different from the DAC data size.
   --! In such case, the data is cut or is barrel shifted.
 --    data_size                  : integer range 4 to 64 := 12;
-  --! The data size of the DAC may or may not be the same as
-  --!   the internal calculation size.
+  --! Data size handled by the DAC controller.
   --! In case of a longueur one, the bits are barrel shifted to fill up.
   --! In case of a shorter one, the bits are cut.
+  --! This has an impact on the resources as it sizes the output registers
+  --! Please note, it may be shorter than the device data size.
+  --! In such case a padding with don't care is added as
+  --!   some devices has a standard interface e.g. for the 12, 14 and 16 bits.
   --   DAC_data_size              : integer range 4 to 50 := 8;
   --   nbre_DACs_used             : integer range 1 to 64 := 1;
   --! Most serial DACs have a command of about 4 bits,
@@ -157,11 +160,13 @@ package DAC_package is
   --!   has to be sent. Then the internal registers are chained.\n
   --! This type intended take and scroll or to force a value.
   --! For debug purposes, a don't care can be sent when no data is relevant.\n
-  --! 000= run and scroll data, 001=run and scroll DAC address
+  --! 000= run and scroll data,
+  --! 001=run and scroll DAC address
   --! 01a= load the working registers from the buffers, while forcing to a the output.
   --! Since the DAC requires a command, sending 0's or 1's can be done
   --!   at the same time the polarity is processed and the working registers are loaded.
-  --! 10b= force b, 110= force don't care,
+  --! 10b= force b,
+  --! 110= force don't care,
   --! 111= force error. Check the comments in the case? of the Buffer_and_working_registers.\n
   --! Don't change the range without a full code review
   subtype registers_control_st is std_logic_vector(2 downto 0);
@@ -190,7 +195,7 @@ package DAC_package is
       --! this takes the data from the previous register,
       --! without passing throw the last buffer.
       chain_data_in      : in  std_logic;
-      --! similar of chaind_data_in but for the polarity,
+      --! similar of chain_data_in but for the polarity,
       --! used only in totem-pole mode
       chain_polarity_in  : in  std_logic;
       --! In case of multiple channels per DAC,

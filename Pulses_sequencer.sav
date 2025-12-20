@@ -1,0 +1,49 @@
+[*]
+[*] GTKWave Analyzer v3.3.111 (w)1999-2020 BSI
+[*] Mon Mar  3 11:48:54 2025
+[*]
+[dumpfile] "/mnt/ramfs/Pulses_sequencer_test.wav"
+[dumpfile_mtime] "Mon Mar  3 11:48:35 2025"
+[dumpfile_size] 9141
+[savefile] "/home/patrick/exos_electronique/Pulse_digital/Pulses_sequencer.sav"
+[timestart] 0
+[size] 3783 646
+[pos] -1 -1
+*-13.912720 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] pulses_sequencer_test.
+[sst_width] 200
+[signals_width] 250
+[sst_expanded] 1
+[sst_vpaned_height] 168
+@23
+pulses_sequencer_test.rst[4:0]
+@28
+pulses_sequencer_test.pulses_sequencer_instanc.clk
+@200
+-RAM signals
+@28
+pulses_sequencer_test.pulses_sequencer_instanc.ram_addr_high[2:0]
+pulses_sequencer_test.pulses_sequencer_instanc.ram_addr_low[0]
+pulses_sequencer_test.pulses_sequencer_instanc.ram_read
+pulses_sequencer_test.pulses_sequencer_instanc.en_process
+pulses_sequencer_test.pulses_sequencer_instanc.ram_write
+@200
+-Channels and states
+@28
+pulses_sequencer_test.pulses_sequencer_instanc.current_chan[2:0]
+pulses_sequencer_test.pulses_sequencer_instanc.channel_not_global
+pulses_sequencer_test.pulses_sequencer_instanc.statemachine_state[2:0]
+@200
+-DAC enables
+@28
+pulses_sequencer_test.pulses_sequencer_instanc.en_out
+@800022
+pulses_sequencer_test.pulses_sequencer_instanc.en[3:0]
+@1001200
+-group_end
+@22
+pulses_sequencer_test.pulses_sequencer_instanc.en_shift[7:0]
+pulses_sequencer_test.en[3:0]
+pulses_sequencer_test.rst[4:0]
+[pattern_trace] 1
+[pattern_trace] 0

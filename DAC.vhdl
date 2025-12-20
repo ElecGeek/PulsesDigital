@@ -137,11 +137,11 @@ begin
     "The error may be due to the number of channels (" & integer'image(channels_number) &
     ") strictly lower than the number of DACs used (" & integer'image(nbre_DACs_used)
     severity failure;
-  assert mode_totempole report "Elaborating " & integer'image(nbre_DACs_used) & " dac(s)," &
+  assert mode_totempole report "Elaborating " & integer'image(nbre_DACs_used) & " dac(s), " &
     "with " & integer'image(nbre_outputs_per_DAC) & " channels each" severity note;
   assert mode_totempole report "Each output is a positive and negative " &
     "with an offset of (<vector>'high=>'1', others=>'0')" severity note;
-  assert not mode_totempole report "Elaborating totem-pole" & integer'image(nbre_DACs_used) & "Dac(s)," &
+  assert not mode_totempole report "Elaborating totem-pole" & integer'image(nbre_DACs_used) & "Dac(s), " &
     "with " & integer'image(2*nbre_outputs_per_DAC) & " channels each" severity note;
   assert not mode_totempole report "Each output is sent to the odd or the even " &
     "output address, according with the polarity" severity note;
@@ -186,7 +186,14 @@ begin
       --   end generate first_in_chain;
       end generate next_in_chain;
     end generate gene_output;
+    -- For debug purpose, set the end of the chain to something different
+    --   that should never appear
+--    registers_chain_data(ind_DAC)(nbre_outputs_per_DAC - 1) <= '-';
+    registers_chain_data(ind_DAC)(nbre_outputs_per_DAC - 1) <= 'W';
+
+
   end generate gene_DAC;
+
 
   CLK_serial_fill : for ind in CLK_serial'high downto CLK_serial'low generate
     CLK_serial(ind) <= CLK_serial_s;
@@ -369,9 +376,28 @@ end architecture arch;
 library ieee;
 use ieee.std_logic_1164.all,
   ieee.numeric_std.all,
+  work.Utils_pac.StateNumbers_2_BitsNumbers,
   work.DAC_package.all;
 
 entity Controler_default is
+  generic (
+    --! Write and update command, vector( m TO n )
+    write_and_update_cmd : std_logic_vector := "--11";
+    --! Write only command, vector( m TO n )
+    write_only_cmd       : std_logic_vector := "--10";
+    --! Initialization command, vector( m TO n )
+    initialization_cmd   : std_logic_vector := "1010";
+    --! Address bits
+    address_size         : positive         := 2;
+    --! Number of channels per DAC, only for validation
+    --!   as this is a part of the DAC definition, not the project definition
+    DAC_number_outputs   : positive         := 2;
+    --! Device data size.
+    --! It may be longer than the device data size.
+    --! In such case a padding with don't care is added as
+    --!   some devices has a standard interface e.g. for the 12, 14 and 16 bits.
+    device_data_size     : positive         := 10
+    );
   port (
     CLK               : in  std_logic;
     RST_init          : in  std_logic;
@@ -386,38 +412,71 @@ end entity Controler_default;
 
 
 architecture arch of Controler_default is
+  --! Size of the main counter. 
+  constant main_counter_size : natural := StateNumbers_2_BitsNumbers(write_and_update_cmd'length +
+                                                                     address_size +
+                                                                     device_data_size +
+                                                                     3);
   --! Counter to manage the command signal to send one output of the DAC
-  -- Don't change the range without a code review
-  signal main_counter          : std_logic_vector(3 downto 0);
+  signal main_counter : std_logic_vector(main_counter_size - 1 downto 0);
+  function TotempoleOutputUsage (
+    constant is_totempole : boolean)
+    return positive is
+  begin
+    if is_totempole then
+      return 2;
+    else
+      return 1;
+    end if;
+  end function TotempoleOutputUsage;
   --! Counter to manage the address in case there is more
   --!   than one output per DAC to handle.
-  signal address_counter       : std_logic_vector(1 downto 0);
+  signal address_counter       : std_logic_vector(address_size - 1 downto 0);
   constant address_counter_min : std_logic_vector(address_counter'range) := (others => '0');
-  constant address_counter_max : std_logic_vector(address_counter'range) := (others => '1');
+  constant address_counter_max : std_logic_vector(address_counter'range) :=
+    std_logic_vector(to_unsigned(DAC_number_outputs / TotempoleOutputUsage(mode_totempole) - 1,
+                                 address_counter'length));
+  signal is_initialised : std_logic;
 begin  -- architecture arch
+  assert DAC_number_outputs <= 2**address_size report "The number of address bits (" & positive'image(address_size) &
+                               ") is not enough for " & positive'image(DAC_number_outputs) & " DAC outputs"
+                               severity failure;
+  assert DAC_data_size <= device_data_size report "The device data size (" & positive'image(device_data_size) &
+                          ") should not be smaller than the DAC data size (" & positive'image(DAC_data_size) & ")"
+                          severity failure;
+  assert write_and_update_cmd'length = write_only_cmd'length report
+    "The size of the command write and update (" & integer'image(write_and_update_cmd'length) &
+    ") should be equal to the write only(" & integer'image(write_only_cmd'length) & ")"
+    severity failure;
+  assert initialization_cmd'length = write_only_cmd'length or initialization_cmd'length = 0 report
+    "The size of the command initialize (" & integer'image(initialization_cmd'length) &
+    ") should be equal to the write only(" & integer'image(write_only_cmd'length) & ")"
+    severity failure;
+  assert write_and_update_cmd'ascending and write_only_cmd'ascending report
+    "The commands with and without updates are defined big endian in an ascending vector" severity error;
   assert mode_totempole or
-    nbre_outputs_per_DAC >= 4
+    nbre_outputs_per_DAC >= DAC_number_outputs
     report "The number of outputs (" & natural'image(nbre_outputs_per_DAC) &
-    ") is lower than 4, some DAC outputs are lost" severity warning;
+    ") is lower than " & positive'image(DAC_number_outputs) & ", some DAC outputs are lost" severity warning;
   assert mode_totempole or
-    nbre_outputs_per_DAC <= 4
+    nbre_outputs_per_DAC <= DAC_number_outputs
     report "The number of outputs (" & natural'image(nbre_outputs_per_DAC) &
-    ") is lower than 4, some project outputs are lost" severity error;
+    ") is lower than " & positive'image(DAC_number_outputs) & ", some project outputs are lost" severity error;
   assert mode_totempole or
-    nbre_outputs_per_DAC /= 4
-    report "Instantiating a set/one DAC with 4 outputs in not totempole mode"
+    nbre_outputs_per_DAC /= DAC_number_outputs
+    report "Instantiating a set/one DAC with " & positive'image(DAC_number_outputs) & " outputs in not totempole mode"
     severity note;
   assert not mode_totempole or
-    nbre_outputs_per_DAC >= 2
+    nbre_outputs_per_DAC >= (DAC_number_outputs / 2)
     report "The number of outputs (" & natural'image(nbre_outputs_per_DAC) &
-    ") is lower than 2, some DAC outputs are lost" severity warning;
+    ") is lower than " & positive'image(DAC_number_outputs/2) & ", some DAC outputs are lost" severity warning;
   assert not mode_totempole or
-    nbre_outputs_per_DAC <= 2
+    nbre_outputs_per_DAC <= (DAC_number_outputs / 2)
     report "The number of outputs (" & natural'image(nbre_outputs_per_DAC) &
-    ") is lower than 2, some project outputs are lost" severity error;
+    ") is lower than " & positive'image(DAC_number_outputs/2) & ", some project outputs are lost" severity error;
   assert not mode_totempole or
-    nbre_outputs_per_DAC /= 2
-    report "Instantiating a set/one DAC with 4 outputs in totempole mode"
+    nbre_outputs_per_DAC /= (DAC_number_outputs / 2)
+    report "Instantiating a set/one DAC with " & positive'image(DAC_number_outputs/2) & " outputs in totempole mode"
     severity note;
 
 
@@ -425,11 +484,20 @@ begin  -- architecture arch
   update_serial <= 'W';
 
   main_proc : process (CLK) is
-    variable address_bits : std_logic_vector(address_counter'range);
+    variable address_bits                     : std_logic_vector(address_counter'length - 1 downto 0);
+    variable write_with_or_without_update_cmd : std_logic_vector(write_and_update_cmd'reverse_range);
   begin  -- process main_proc
     if rising_edge(CLK) then
       RST_IF : if RST_init = '0' then
         DAC_CLK_divider : if true then
+          if is_initialised = '0' and initialization_cmd'length > 0 then
+            write_with_or_without_update_cmd := initialization_cmd;
+          elsif address_counter /= address_counter_max then
+            write_with_or_without_update_cmd := write_and_update_cmd;
+          else
+            write_with_or_without_update_cmd := write_only_cmd;
+          end if;
+          -- Compute the address that is going to be used
           if mode_totempole then
             -- The low bit is going to come from the register.
             -- It is however set in order to keep a standard VHDL code
@@ -439,63 +507,105 @@ begin  -- architecture arch
             address_bits(address_bits'low) :=
               address_counter(address_counter'low);
           else
-            address_bits := address_counter;
+            address_bits(address_bits'low + address_counter'length - 1 downto 0)             := address_counter;
+            -- If the padding is > 0, populate the high part with 0's
+            -- otherwise do nothing the range is NULL (VHDL2008)
+            address_bits(address_bits'high downto address_bits'low + address_counter'length) := (others => '0');
           end if;
-          if main_counter(3 downto 2) = "11" then
-            main_counter <= "0000";
-          elsif main_counter /= "0000" or
-            start = '1' or
-            address_bits /= address_counter_min then
-            main_counter <= std_logic_vector(unsigned(main_counter) + 1);
-          end if;
-          case to_integer(unsigned(main_counter)) is
-            when 0 =>
-              if start = '1' then
-                registers_control <= "011";
-              elsif address_bits /= address_counter_min then
-                registers_control <= "101";
-              end if;
-            when 1 =>
-              -- Since there is a one bit latch (in the register component)
-              -- after the selector 0, 1, -, data, address the transfer is delayed
-              transfer_serial   <= '0';
-              if address_counter /= address_counter_max then
-                registers_control <= "100"; 
+
+          -- Run the main, parallel to serial conversion of
+          --   the command, the address and the data
+          MAIN_IF_DISPATCH : if to_integer(unsigned(main_counter)) = 0 then
+            START_CONT_WAIT : if start = '1' then
+              if write_with_or_without_update_cmd(write_with_or_without_update_cmd'high) = '-' then
+                registers_control <= "010";
               else
-                registers_control <= "101";
+                registers_control(2 downto 1) <= "01";
+                registers_control(0)          <= write_with_or_without_update_cmd(write_with_or_without_update_cmd'high);
               end if;
-           when 2 =>
-              registers_control(2 downto 1) <= "10";
-              registers_control(0)          <= address_bits(1);
-            when 3 =>
-              if mode_totempole then
-                registers_control <= "001";
+              main_counter <= std_logic_vector(unsigned(main_counter) + 1);
+
+            elsif address_bits /= address_counter_min then
+              if write_with_or_without_update_cmd(write_with_or_without_update_cmd'high) = '-' then
+                registers_control <= "110";
               else
                 registers_control(2 downto 1) <= "10";
-                registers_control(0)          <= address_bits(0);
+                registers_control(0)          <= write_with_or_without_update_cmd(write_with_or_without_update_cmd'high);
               end if;
+              main_counter <= std_logic_vector(unsigned(main_counter) + 1);
+            end if START_CONT_WAIT;
 
-            when 4 to 9 =>
-              registers_control <= "000";
-            when 10 =>
+          elsif to_integer(unsigned(main_counter)) < write_with_or_without_update_cmd'length then
+            if write_with_or_without_update_cmd(write_with_or_without_update_cmd'high -
+                                                to_integer(unsigned(main_counter))
+                                                ) = '-' then
               registers_control <= "110";
-            when 11 =>
-              -- Since there is a one bit latch (in the register component)
-              -- after the selector 0, 1, -, data, address the transfer is delayed
-              transfer_serial <= '1';
-              -- This is probably simplified as it is a basic increment
-              -- with a roll over when reach the mast one.
-              -- Since it is an example, some other entities might handle
-              --   for instance 6 outputs DAC, or 5 outputs DAC non totempole.
-              if address_counter /= address_counter_max then
-                address_counter <= std_logic_vector(unsigned(address_counter) + 1);
-              else
-                address_counter <= address_counter_min;
-              end if;
-            when others => null;
-          end case;
+            else
+              registers_control(2 downto 1) <= "10";
+              registers_control(0) <= write_with_or_without_update_cmd(write_with_or_without_update_cmd'high -
+                                                                       to_integer(unsigned(main_counter)));
+            end if;
+            main_counter    <= std_logic_vector(unsigned(main_counter) + 1);
+            -- Since there is a one bit latch (in the register component)
+            -- after the selector 0, 1, -, data, address the transfer is delayed
+            transfer_serial <= '0';
+
+          -- Now transferring the address blocs
+          elsif to_integer(unsigned(main_counter)) < (write_with_or_without_update_cmd'length + address_size - 1) then
+            registers_control(2 downto 1) <= "10";
+            registers_control(0) <= address_bits(
+              address_size - 1 - to_integer(unsigned(main_counter)) + write_with_or_without_update_cmd'length
+              );
+            main_counter <= std_logic_vector(unsigned(main_counter) + 1);
+
+          elsif to_integer(unsigned(main_counter)) = (write_with_or_without_update_cmd'length + address_size - 1) then
+            if mode_totempole then
+              registers_control <= "001";
+            else
+              registers_control(2 downto 1) <= "10";
+              registers_control(0)          <= address_bits(address_bits'low);
+            end if;
+            main_counter <= std_logic_vector(unsigned(main_counter) + 1);
+
+          -- Run and shift the data
+          elsif to_integer(unsigned(main_counter)) <
+            (write_with_or_without_update_cmd'length + address_size + DAC_data_size) then
+            registers_control <= "000";
+            main_counter      <= std_logic_vector(unsigned(main_counter) + 1);
+
+          -- Data is over, set the don't care one clock cycle before ...
+          elsif to_integer(unsigned(main_counter)) <
+            (write_with_or_without_update_cmd'length + address_size + device_data_size + 1) then
+            registers_control <= "110";
+            main_counter      <= std_logic_vector(unsigned(main_counter) + 1);
+
+          -- ... and reset the enable
+          else
+            --elsif to_integer(unsigned(main_counter)) <
+            --(write_with_or_without_update_cmd'length + address_size + DAC_data_size + 2) then
+            -- Since there is a one bit latch (in the register component)
+            -- after the selector 0, 1, -, data, address the transfer is delayed
+            transfer_serial <= '1';
+            -- This is probably simplified as it is a basic increment
+            -- with a roll over when reach the mast one.
+            -- Since it is an example, some other entities might handle
+            --   for instance 6 outputs DAC, or 5 outputs DAC non totempole.
+            if address_counter /= address_counter_max then
+              address_counter <= std_logic_vector(unsigned(address_counter) + 1);
+            else
+              address_counter <= address_counter_min;
+              is_initialised  <= '1';
+            end if;
+            main_counter    <= (others => '0');
+            -- Since there is a one bit latch (in the register component)
+            -- after the selector 0, 1, -, data, address the transfer is delayed
+            transfer_serial <= '1';
+
+          end if MAIN_IF_DISPATCH;
+
         end if DAC_CLK_divider;
       else
+        is_initialised  <= '0';
         main_counter    <= (others => '0');
         address_counter <= address_counter_min;
       end if RST_IF;

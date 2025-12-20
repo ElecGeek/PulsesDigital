@@ -15,6 +15,7 @@ ICEPACK?=icepack
 
 DAC_simul : $(SCRDIR)DAC.vhdl $(SCRDIR)DAC_test.vhdl $(SCRDIR)DAC_package.vhdl $(SCRDIR)DAC_configure.vhdl $(SRCDIR)DAC_emulators.vhdl
 	rm -f work-obj08.cf
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC.vhdl
 #	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_configure.vhdl
