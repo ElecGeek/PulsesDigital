@@ -10,23 +10,23 @@ Only the VHDL and the tests are provided. There is no parts list nor PCB.
 It should build on every (not too old) FPGA.
 
 
-The macro blocs logic is the same than the pulses_gene project, plus additional features.
+The macro blocs logic is the same than the pulses_gene project, plus additional features and with a reduce analogue "smoothing".
 The analogue part is reduced to some inexpensive passive components, Serial ADC and serial DAC.
+The project issues the interface lines (CLK, transfer etc...) for the DAC. At the full bundle level, each control is duplicated into unconstrained vectors. The top level fixes the number of PINS according with the PCB. It is also a good idea, for multiple DAC to supply all the signals of each one by the same FPGA power supply bank.
 
+The pulses are "smoothed" in the same way than the MultiSignalGene project.
 
-The pulses are "smoothed" by a real algorithm (1/4, 1/2, 3/4, full, ..., 3/4, 1/2, 1/4) rather than some low pass RCs.
-The master clock should be at least about 25 times the output sampling rate, in order to run the DAC and to allow bit after bit arithmetic.
-By this way, multiple outputs can run in parallel as the inputs run in sequence. 
-
-
+The master clock should be at least about 20 or more times the output sampling rate. In fact, there are multiple modules that requires their own ratio, the highest one have to be taken.
 
 There are frames, super frames etc... Each frame level computes a macro bloc.
-Inside each level, the computation is done sequentially, one channel after the other. 
-At the lowest level, The number of CLK cycles per sound output sample is eight times the number of channels (plus four is extra RAM operation is requested) or the number of required CLK cycles of the serial DAC, whatever is the bigger one.
+Inside each level, the computation is done sequentially, each task is implemented only once. Using registers or RAM, all the data is processed.
+On regular schedule, the modules do what they have to do and go to sleep. By this way almost all configuration are possible if the master clock is enough high.
+
+The result of the last module (the pulse "casting") is latched in a register according with the channel. The DAC controller has all the channels in parallel for processing. Depending the number of output per DAC and/or the totem-pole mode or not, the relevant configuration runs all the channels. 
 
 
 There is no documentation other than schematic diagrams. All the relevant data is in the code. A run of DOxygen can extract the documentation from all the project.
-The assumptions, especially the vectors sizes rules, can be found by checking the "assert report severity" statements. In case of a very imprecise result, a severity error is sent. In case of a risk of crash, a failure is sent.
+The assumptions, especially the vectors sizes rules, can be found by checking the "assert report severity" statements. In case of a very imprecise result, a severity error is sent. In case of a risk of crash in the synthesis, a failure is sent.
 
 
 Especially for the large number of channels, if the ASIC or the FPGA contains a RAM, the number of LUT is reduced. It is designed to match many RAM interfaces.

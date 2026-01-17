@@ -1,0 +1,88 @@
+This document describe the specifications, the reasons of choice, the easy customisation and the effort to modify.
+
+The README.md is supposed to be read first.
+
+
+
+Framing schema.
+---------------
+* The DAC master clock can be divided to use a higher FPGA/ASIC master clock.
+TODO clarify the case the divider is 1, as that means the master clock is reissued as it. The design can consider the falling edge while the data is set at the rising edge. Due to slightly low frequencies, the setup and hold time are still in the mask.
+The problem is the EDA tools may complain they can not guarantee the phase.
+
+* The DAC sequence handles the serial writing of one value with or without transferring to the converter registers (see below).
+It is, in general, a short command set of bits followed by the bits of the value.
+Some idle bits are the separator or the transfer signal.
+In case of a multiple output DAC, more than one DAC sequence is issued.
+
+* The frame handles one output sample.
+The master clock is the worst case of the following content:
+** It contains one or more DAC sequence, according with the number of outputs per DAC.
+** It applies thee "smoothing" to the pulses, one channel after the other.
+** It computes the state of the pulse, one channel after the other.
+
+* The super frame handles a number of frames equal to the number of channels.
+** During each frame, the product of the requested values by the global volume is computed.
+
+* The ultra frames are for the ADC
+TODO: decide if the project stops here with a fast RS232 as the trigger or (as the other fun project of the analogue pulse) continue with an audio compatible input.
+
+* The IO frame handles a number of super frames equal to the number of chars required for the display and key scan.
+TODO
+
+
+The VHDL compiler should support the 2008.
+------------------------------------------
+There is a usage of the NULL vectors. Especially, some DAC has a software transfer between the shift register and the converter registers, some other has an hardware one.
+The prohibition to read back an output port made really the code less readable and the work around was a case of bugs.
+
+
+The DAC should have separate shift reception registers and converter registers.
+-------------------------------------------------------------------------------
+This rule can be violated but that introduces a latency between the outputs if the data just received is on-line immediately.
+
+
+In case of multiple DACs, they should all be the same model.
+-------------------------------------------------------------
+Especially for small FPGAs or ASICs, the handshake is common for all the DACs. That supposes they are the same model.
+However, these signal can be duplicated in case the DACs are on different I/O banks.
+
+
+The supported DACs are in a very short list.
+--------------------------------------------
+The serial DAC with a command and the data left justified are now common.
+Some other are fully compatible as the left justification allows a pretty rail to rail regardless the resolution.
+The code can be modified to considered another set of commands.
+The code can be modified to take parallel DACs by exposing the output registers directly to the pins. Be careful of the size.
+If the DAC has a bulk mode, the controller has to be redesign. The actual design assumes there is a complete (write) cycle multiple times if more than one outputs have to be set.
+Otherwise, there is some work to redesign the DAC controller. However, there are some tests compatibles with everything.
+ 
+
+The RAM handshake takes 8 master clock cycles for a full read modify write.
+----------------------------------------------------------------------------
+It may be a drawback for the master clock speed.
+It allows to be interfaced with many RAM schemes. Only one action is done at each master clock cycle:
+set of the address, assert the read enable, disable the enable while placing the data in a buffer, process the data, set the new data, assert the write enable, disable the enable.
+
+
+The amplitude is not updated at each frame but at each super frame.
+-------------------------------------------------------------------
+It requires a full multiplication and an addition if a polarisation is required.
+The restriction above is acceptable, especially because the number of samples per pulse is large against the number of channels, and because the result value is frozen during the pulse.
+A modification is not that complicated but it consumes a lot of resources and a RAM access.
+
+
+The output is 0 for one sample between the positive and the negative.
+---------------------------------------------------------------------
+It is a standard requirement for the totem-pole.
+In this mode, only the output of one polarity is issued at a time. Then each time the polarity changes, the last one should set 0 before the new one takes its value.
+The change is a little bit hard and requires to multiply the master clock frequency by 2.
+
+
+The pulses are "smoothed" by a fixed schema.
+--------------------------------------------
+The values are 1/4, 1/2, 3/4, full, ..., 3/4, 1/2, 1/4, 0, -1/4, -1/2, -3/4, -full, ..., -3/4, -1/2, -1/4, 0, wait ...
+This allows a computation for all the channels at each sample. The resources are only a shift register and an adder.
+Reducing is irrelevant as it would have required more analog filtering.
+Increasing is to modify a state machine to add 1/8 values. Some care should be taken for short pulses as the number of samples increases.
+
