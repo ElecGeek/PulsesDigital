@@ -14,7 +14,33 @@ use ieee.std_logic_1164.all,
 --! * data keft justified
 --! A transfer signal is asserted at the begining and negated or not at the end.
 --!   Additional bits are ignored.
-entity DAC_simul_model_1 is
+package DAC_emulators_package is
+    component DAC_emulator is
+    generic(
+      write_and_update_cmd : std_logic_vector;
+      write_only_cmd       : std_logic_vector;
+      address_size         : positive              := 10;
+      DAC_numbers          : positive              := 10;
+      --! This generic has 2 purposes:
+      --! * set the size of the data registers.
+      --! * consider as canceled if the transfer_serial return early to high
+      data_bits            : integer range 4 to 30 := 12
+      );
+    port(
+      data_serial     : in std_logic;
+      CLK_serial      : in std_logic;
+      transfer_serial : in std_logic;
+      update_serial   : in std_logic
+      );
+  end component DAC_emulator;
+end package DAC_emulators_package;
+
+library ieee;
+use ieee.std_logic_1164.all,
+  ieee.numeric_std.all;
+
+
+entity DAC_emulator_model_1 is
   generic(
     write_and_update_cmd : std_logic_vector;
     write_only_cmd       : std_logic_vector;
@@ -31,11 +57,11 @@ entity DAC_simul_model_1 is
     transfer_serial : in std_logic;
     update_serial   : in std_logic
     );
-end entity DAC_simul_model_1;
+end entity DAC_emulator_model_1;
 
 
 
-architecture arch of DAC_simul_model_1 is
+architecture arch of DAC_emulator_model_1 is
   constant total_message_length : positive :=
     write_and_update_cmd'length + address_size + data_bits;
   signal serial_counter   : natural;

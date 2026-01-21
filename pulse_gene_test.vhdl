@@ -21,7 +21,7 @@ architecture arch of Pulses_lowlevel_test is
   signal priv_counter_in     : std_logic_vector(10 downto 0)                 := (others        => '0');
   signal priv_counter_out    : std_logic_vector(10 downto 0)                 := (others        => '0');
   signal priv_polar_in       : std_logic;
-  signal priv_polar_out       : std_logic;
+  signal priv_polar_out      : std_logic;
   signal priv_counter_loaded : boolean                                       := false;
   signal req_amplitude       : std_logic_vector(size_amplitude - 1 downto 0) := ("111", others => '0');
   signal out_amplitude       : std_logic_vector(size_amplitude - 1 downto 0);
@@ -49,11 +49,11 @@ begin
 
   Pulses_stateMOut_instanc : Pulses_stateMOut
     port map(
-      CLK               => CLK,
-      RST               => RST,
-      req_amplitude     => req_amplitude,
-      state             => std_logic_vector(state_id(state_id'low + 3 downto state_id'low)),
-      out_amplitude     => out_amplitude
+      CLK           => CLK,
+      RST           => RST,
+      req_amplitude => req_amplitude,
+      state         => std_logic_vector(state_id(state_id'low + 3 downto state_id'low)),
+      out_amplitude => out_amplitude
       );
 
   Pulses_stateMachine_instanc : Pulses_stateMachine
@@ -144,7 +144,9 @@ library ieee;
 use ieee.std_logic_1164.all,
   ieee.numeric_std.all,
   work.Utils_pac.StateNumbers_2_BitsNumbers,
-  work.Pulses_pac.pulses_bundle;
+  work.DAC_package.all,
+  work.Pulses_pac.pulses_bundle,
+  work.DAC_emulators_package.all;
 --! @brief Handles N pulse channels
 --!
 --! It bundles all the components of the package.
@@ -167,8 +169,11 @@ architecture arch of Pulses_bundle_test is
   signal RST                 : std_logic_vector(2 downto 0)    := (others        => '1');
   signal CLK                 : std_logic                       := '0';
   signal start_pulse         : std_logic;
-  signal data_out            : std_logic_vector(chans_number - 1 downto 0);
-  signal transfer            : std_logic_vector(3 downto 0);
+  signal data_serial         : std_logic_vector(nbre_DACS_used - 1 downto 0);
+  signal CLK_serial          : std_logic_vector(2 downto 0);
+  signal transfer_serial     : std_logic_vector(1 downto 0);
+  signal update_serial       : std_logic_vector(0 downto 0);
+
 begin
   main_proc : process is
   begin
@@ -186,9 +191,9 @@ begin
             samples_counter <= samples_counter + 1;
             start_pulse     <= '0';
           else
-            samples_counter <= (others=>'0');
-            pulses_counter <= pulses_counter + 1;
-            start_pulse    <= '1';
+            samples_counter <= (others => '0');
+            pulses_counter  <= pulses_counter + 1;
+            start_pulse     <= '1';
           end if samples_if;
         end if DAC_IF;
       end if CLK_IF;
@@ -209,11 +214,43 @@ begin
       RST                => RST(RST'low),
       start              => start_pulse,
 --! TEMPORARY
-      priv_amplitude_new => ("011", others=>'0'),
+      priv_amplitude_new => ("011", others => '0'),
       --! TODO set the inputs amplitude and the volume
-      data_out           => data_out,
-      transfer           => transfer
+      data_serial        => data_serial,
+      CLK_serial         => CLK_serial,
+      transfer_serial    => transfer_serial,
+      update_serial      => update_serial
+      );
+
+
+  DAC_emulator_instanc : DAC_emulator
+    generic map (
+      write_and_update_cmd => "000",
+      write_only_cmd       => "000")
+    port map(
+      data_serial     => data_serial(data_serial'low),
+      CLK_serial      => CLK_serial(CLK_serial'low),
+      transfer_serial => transfer_serial(transfer_serial'low),
+      update_serial   => update_serial(update_serial'low)
       );
 
 
 end architecture arch;
+
+
+configuration pulses_bundle_test_default_controler of pulses_bundle_test is
+  for arch
+    for Pulses_bundle_instanc : Pulses_bundle
+      use configuration work.DAC_default_controler;
+    end for;
+    for DAC_emulator_instanc : DAC_emulator
+      use entity work.DAC_emulator_model_1
+        generic map (
+          write_and_update_cmd => "--10",
+          write_only_cmd       => "--11",
+          address_size         => 2,
+          DAC_numbers          => 4,
+          data_bits            => 6);
+    end for;
+  end for;
+end configuration pulses_bundle_test_default_controler;

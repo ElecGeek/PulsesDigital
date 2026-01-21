@@ -80,36 +80,6 @@ package Pulses_pac is
       );
   end component Pulses_stateMOut;
 
---! @brief converts parallel into serial for DAC
---!
---! It takes the value and the polarity.
---! It produces the serial output including the pos or the neg command.\n
---! In order to synchronize all the outputs,
---!   it buffers the input and transfers into a register when required.\n
---! This is the generic one.
---! It is intended for tests.
---! To use a specific DAC, an entity (and architecture) should be written,
---!   and a configure statement should look like
---!   for ... for all : Pulses_DAC_generic use entity Pulses_DAC_xyz
-  component Pulses_DAC_wrapper is
-    --! Tells the number of clock cycles available for a writing
-    generic (
-      MasterCLK_SampleCLK_ratio : integer range 10 to 40
-      );
-    port (
-      --! Master clock
-      CLK               : in  std_logic;
-      RST               : in  std_logic;
-      EN                : in  std_logic;
-      --! Tells which polarity has to be update
-      polar_pos_not_neg : in  std_logic;
-      in_amplitude      : in  std_logic_vector;
-      EN_out            : in  std_logic;
-      DAC_data          : out std_logic;
-      DAC_transfer      : out std_logic
-      );
-  end component Pulses_DAC_wrapper;
-
   --! @brief Handles all the internal controls and RAM addresses
   --!
   --! The design is optimized for global safety and validation efforts
@@ -183,8 +153,10 @@ package Pulses_pac is
 --! TEMPORARY
       priv_amplitude_new : in  std_logic_vector (15 downto 0);
       --! TODO set the inputs amplitude and the volume
-      data_out           : out std_logic_vector(chans_number - 1 downto 0);
-      transfer           : out std_logic_vector(chans_number - 1 downto 0)
+    data_serial        : out std_logic_vector;
+    CLK_serial         : out std_logic_vector;
+    transfer_serial    : out std_logic_vector;
+    update_serial      : out std_logic_vector
       );
   end component Pulses_bundle;
 

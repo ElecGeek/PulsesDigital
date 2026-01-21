@@ -53,7 +53,7 @@ begin
   -- 1101 : 3/4 negative
   -- 1110 : 1/2 negative
   -- 1111 : 1/4 negative
-  
+
   state_proc : process(RST, start, polar_first, priv_state_in, priv_polar_in, priv_counter_in) is
   begin
     STATE_CASE : case priv_state_in(1 downto 0) is
@@ -126,13 +126,13 @@ use ieee.std_logic_1164.all,
 entity Pulses_stateMOut is
   port (
     --! Master clock
-    CLK               : in  std_logic;
-    RST               : in  std_logic;
+    CLK           : in  std_logic;
+    RST           : in  std_logic;
     --! Enable: high only once to compute the new state
-    req_amplitude     : in  std_logic_vector;
-    state             : in  std_logic_vector(3 downto 0);
+    req_amplitude : in  std_logic_vector;
+    state         : in  std_logic_vector(3 downto 0);
     --! Tells which polarity has to be update
-    out_amplitude     : out std_logic_vector
+    out_amplitude : out std_logic_vector
     );
 end entity Pulses_stateMOut;
 
@@ -351,140 +351,6 @@ begin
   end process main_proc;
 end architecture arch;
 
-library ieee;
-use ieee.std_logic_1164.all,
-  ieee.numeric_std.all;
-entity Pulses_DAC_wrapper is
-  generic (
-    --! The entity should, check the DAC requirement is lower or equal
-    MasterCLK_SampleCLK_ratio : integer range 10 to 40
-    );
-  port (
-    --! Master clock
-    CLK               : in  std_logic;
-    RST               : in  std_logic;
-    EN                : in  std_logic;
-                                        --! Tells which polarity has to be update
-    polar_pos_not_neg : in  std_logic;
-    in_amplitude      : in  std_logic_vector;
-    EN_out            : in  std_logic;
-    DAC_data          : out std_logic;
-    DAC_transfer      : out std_logic
-    );
-end entity Pulses_DAC_wrapper;
-
-architecture arch of Pulses_DAC_wrapper is
-  component Pulses_DAC_generic is
-    --! Tells the number of clock cycles available for a writing
-    generic (
-      MasterCLK_SampleCLK_ratio : integer range 10 to 40
-      );
-    port (
-      --! Master clock
-      CLK               : in  std_logic;
-      RST               : in  std_logic;
-      EN                : in  std_logic;
-      --! Tells which polarity has to be update
-      polar_pos_not_neg : in  std_logic;
-      in_amplitude      : in  std_logic_vector;
-      EN_out            : in  std_logic;
-      DAC_data          : out std_logic;
-      DAC_transfer      : out std_logic
-      );
-  end component Pulses_DAC_generic;
-begin
-  Pulses_DAC_instanc : Pulses_DAC_generic
-    generic map (
-      MasterCLK_SampleCLK_ratio => MasterCLK_SampleCLK_ratio)
-    port map (
-      CLK               => CLK,
-      RST               => RST,
-      EN                => EN,
-      polar_pos_not_neg => polar_pos_not_neg,
-      in_amplitude      => in_amplitude,
-      EN_out            => EN_out,
-      DAC_data          => DAC_data,
-      DAC_transfer      => DAC_transfer
-      );
-end architecture arch;
-
-
-library ieee;
-use ieee.std_logic_1164.all,
-  ieee.numeric_std.all;
---! @brief converts parallel into serial for DAC
---!
---! It takes the value and the polarity. It produces the serial output.\n
---! In order to synchronize all the outputs,
---!   it buffers the input and transfers into a register when required.\n
---! This one sends a $3 followed by the polarity followed by the value
---!   in big endian mode
---! The diagrams may be buggy or even does not fit any DAC
---! It is a sample code to write the DAC in use.
-entity Pulses_DAC_generic is
-  generic (
-    --! The entity should, check the DAC requirement is lower or equal
-    MasterCLK_SampleCLK_ratio : integer range 10 to 40
-    );
-  port (
-    --! Master clock
-    CLK               : in  std_logic;
-    RST               : in  std_logic;
-    EN                : in  std_logic;
-    --! Tells which polarity has to be update
-    polar_pos_not_neg : in  std_logic;
-    in_amplitude      : in  std_logic_vector;
-    EN_out            : in  std_logic;
-    DAC_data          : out std_logic;
-    DAC_transfer      : out std_logic
-    );
-end entity Pulses_DAC_generic;
-
-architecture arch of Pulses_DAC_generic is
-  signal super_world      : std_logic_vector(4 + 1 + in_amplitude'length - 1 downto 0);
-  signal amplitude_next   : std_logic_vector(in_amplitude'range);
-  signal polar_next       : std_logic;
-  --! TODO TODO make the size dynamic
-  signal count_length     : std_logic_vector(4 downto 0);
-  signal to_be_transfered : std_logic;
-begin
-  DAC_data <= super_world(super_world'high);
-
-  main_proc : process(CLK) is
-  begin
-    if rising_edge(CLK) then
-      RST_if : if RST = '0' then
-        if EN = '1' then
-          polar_next     <= polar_pos_not_neg;
-          amplitude_next <= in_amplitude;
-        end if;
-        EN_out_if : if EN_out = '1' then
-          super_world(super_world'high downto super_world'high - 3) <= "0011";
-          super_world(super_world'high - 4)                         <= polar_next;
-          super_world(super_world'high - 5 downto super_world'low)  <= amplitude_next;
-          count_length                                              <= std_logic_vector(to_unsigned(4 + 1 + in_amplitude'length - 1, count_length'length));
-          to_be_transfered                                          <= '1';
-        elsif count_length /= std_logic_vector(to_unsigned(0, count_length'length)) then
-          super_world(super_world'high downto super_world'low + 1)<=
-            super_world(super_world'high - 1 downto super_world'low);
-          super_world(super_world'low) <= '-';
-          count_length                 <= std_logic_vector(unsigned(count_length) - 1);
-        elsif to_be_transfered = '1' then
-          -- This does not change anything but makes the debug more easy
-          super_world(super_world'high downto super_world'low + 1)<=
-            super_world(super_world'high - 1 downto super_world'low);
-          DAC_transfer     <= '1';
-          to_be_transfered <= '0';
-        else
-          DAC_transfer <= '0';
-        end if EN_out_if;
-      --else
-      -- Should discuss what to do during the reset
-      end if RST_IF;
-    end if;
-  end process main_proc;
-
-end architecture arch;
 
 
 entity Pulses_amplitude_volume is
@@ -495,6 +361,7 @@ library ieee;
 use ieee.std_logic_1164.all,
   ieee.numeric_std.all,
   work.Utils_pac.StateNumbers_2_BitsNumbers,
+  work.Dac_package.all,
   work.Pulses_pac.all;
 --! @brief Handles N pulse channels
 --!
@@ -514,8 +381,10 @@ entity Pulses_bundle is
 --! TEMPORARY
     priv_amplitude_new : in  std_logic_vector (15 downto 0);
     --! TODO set the inputs amplitude and the volume
-    data_out           : out std_logic_vector(chans_number - 1 downto 0);
-    transfer           : out std_logic_vector(chans_number - 1 downto 0)
+    data_serial        : out std_logic_vector;
+    CLK_serial         : out std_logic_vector;
+    transfer_serial    : out std_logic_vector;
+    update_serial      : out std_logic_vector
     );
 end entity Pulses_bundle;
 
@@ -558,7 +427,7 @@ begin
   assert priv_amplitude_in'length >= (state_length + counter_length)
     report "in this version, the amplitude size should be at least the state size (3) plus the counter size"
     severity error;
-  
+
   main_proc : process(CLK) is
   begin
     CLK_IF : if rising_edge(CLK) then
@@ -609,7 +478,7 @@ begin
             -- Running, keep the old amplitude
             RAM_write_struct <= RAM_read_struct;
           end if;
-          
+
         end if PROC_if;
       end if R_W_if;
     end if CLK_IF;
@@ -642,11 +511,11 @@ begin
 
   Pulses_stateMOut_instanc : Pulses_stateMOut
     port map(
-      CLK               => CLK,
-      RST               => RST,
-      req_amplitude     => RAM_unioned,
-      state             => priv_state_S_2_A,
-      out_amplitude     => amplitude_for_DAC
+      CLK           => CLK,
+      RST           => RST,
+      req_amplitude => RAM_unioned,
+      state         => priv_state_S_2_A,
+      out_amplitude => amplitude_for_DAC
       );
 
   Pulses_stateMachine_instanc : Pulses_stateMachine
@@ -670,31 +539,31 @@ begin
       );
 
 
-  chan_DAC : for ind in 0 to chans_number - 1 generate
+  -- DAC_bundle_instanc : DAC_bundle_dummy
+  --   port map (
+  --     CLK,
+  --     polar_pos_not_neg => priv_polar_S_2_A,
+  --     data_in           => amplitude_for_DAC,
+  --     EN                => EN,
+  --     RST_init          => RST,
+  --     start             => the_start,
+  --     data_serial       => data_serial,
+  --     CLK_serial        => CLK_serial,
+  --     transfer_serial   => transfer_serial,
+  --     update_serial     => update_serial
+  --     );
 
-    chan_instanc : Pulses_DAC_wrapper generic map
-      (
-        MasterCLK_SampleCLK_ratio => MasterCLK_SampleCLK_ratio
-        )
-      port map
-      (
-        CLK               => CLK,
-        RST               => RST,
-        EN                => EN(ind),
-        polar_pos_not_neg => priv_polar_S_2_A,
-        in_amplitude      => amplitude_for_DAC,
-        EN_out            => EN_out,
-        DAC_data          => data_out(ind),
-        DAC_transfer      => transfer(ind));
-  end generate chan_DAC;
-  
+
 end architecture arch;
 
---configuration Pulses_DAC_config of Pulses_DAC_wrapper is
---  for arch
---    for Pulses_DAC_instanc : Pulses_DAC_wrapped;
---      use entity work.Pulses_DAC_generic;
+
+configuration DAC_default_controler of Pulses_bundle is
+  for arch
+--    for DAC_bundle_instanc : DAC_bundle_dummy
+--      use entity work.DAC_bundle_real_outputs;
 --    end for;
---  end for;
---end configuration Pulses_DAC_config;
+    
+  end for;
+end configuration DAC_default_controler;
+
 

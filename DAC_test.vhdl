@@ -2,7 +2,8 @@ library ieee;
 use ieee.std_logic_1164.all,
   ieee.numeric_std.all,
   work.Utils_pac.StateNumbers_2_BitsNumbers,
-  work.DAC_package.all;
+  work.DAC_package.all,
+  work.DAC_emulators_package.all;
 
 entity DAC_test is
 
@@ -42,25 +43,6 @@ architecture arch of DAC_test is
   signal CLK_serial          : std_logic_vector (4 downto 2);
   signal transfer_serial     : std_logic_vector (5 downto 5);
   signal update_serial       : std_logic_vector (5 downto 5);
-
-  component DAC_simul is
-    generic(
-      write_and_update_cmd : std_logic_vector;
-      write_only_cmd       : std_logic_vector;
-      address_size         : positive              := 10;
-      DAC_numbers          : positive              := 10;
-      --! This generic has 2 purposes:
-      --! * set the size of the data registers.
-      --! * consider as canceled if the transfer_serial return early to high
-      data_bits            : integer range 4 to 30 := 12
-      );
-    port(
-      data_serial     : in std_logic;
-      CLK_serial      : in std_logic;
-      transfer_serial : in std_logic;
-      update_serial   : in std_logic
-      );
-  end component DAC_simul;
 
 begin
 
@@ -143,7 +125,7 @@ begin
       );
 
 
-  DAC_simul_instanc : DAC_simul
+  DAC_emulator_instanc : DAC_emulator
     generic map (
       write_and_update_cmd => "000",
       write_only_cmd       => "000")
@@ -159,13 +141,13 @@ end architecture arch;
 
 
 
-configuration DAC_default_controler of DAC_test is
+configuration DAC_test_default_controler of DAC_test is
   for arch
     for DAC_bundle_instanc : DAC_bundle_dummy
       use entity work.DAC_bundle_real_outputs;
     end for;
-    for DAC_simul_instanc : DAC_simul
-      use entity work.DAC_simul_model_1
+    for DAC_emulator_instanc : DAC_emulator
+      use entity work.DAC_emulator_model_1
         generic map (
           write_and_update_cmd => "--10",
           write_only_cmd       => "--11",
@@ -174,5 +156,5 @@ configuration DAC_default_controler of DAC_test is
           data_bits            => 6);
     end for;
   end for;
-end configuration DAC_default_controler;
+end configuration DAC_test_default_controler;
 

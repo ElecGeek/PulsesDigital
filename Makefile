@@ -21,9 +21,9 @@ DAC_simul : $(SCRDIR)DAC.vhdl $(SCRDIR)DAC_test.vhdl $(SCRDIR)DAC_package.vhdl $
 #	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_configure.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_emulators.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_test.vhdl
-	$(GHDL_PROG) -e $(VFLAGS) DAC_default_controler
+	$(GHDL_PROG) -e $(VFLAGS) DAC_test_default_controler
 #	$(GHDL_PROG) -e $(VFLAGS) DAC_test
-	$(GHDL_PROG) -r $(VFLAGS) DAC_default_controler --vcd=$(WAVDESTDIR)DAC_test.wav 2>&1 | tee $(DESTDIR)DAC_test.out.txt
+	$(GHDL_PROG) -r $(VFLAGS) DAC_test_default_controler --vcd=$(WAVDESTDIR)DAC_test.wav 2>&1 | tee $(DESTDIR)DAC_test.out.txt
 #	$(GHDL_PROG) -r $(VFLAGS) DAC_test --vcd=$(WAVDESTDIR)DAC_test.wav 2>&1 | tee $(DESTDIR)DAC_test.out.txt
 # There are many small and fast entities to simulate
 # Then they are together 
@@ -37,13 +37,16 @@ pulse_parts_simul : $(SCRDIR)pulse_gene.vhdl $(SCRDIR)pulse_gene_test.vhdl $(SCR
 	$(GHDL_PROG) -e $(VFLAGS) Pulses_sequencer_test
 	$(GHDL_PROG) -r $(VFLAGS) Pulses_sequencer_test --vcd=$(WAVDESTDIR)Pulses_sequencer_test.wav 2>&1 | tee $(DESTDIR)Pulses_sequencer_test.out.txt
 
-pulse_bundle_simul : $(SCRDIR)pulse_gene.vhdl $(SCRDIR)pulse_gene_test.vhdl  $(SCRDIR)utils_package.vhdl $(SCRDIR)pulse_gene_package.vhdl
+pulse_bundle_simul : $(SCRDIR)pulse_gene.vhdl $(SCRDIR)pulse_gene_test.vhdl  $(SCRDIR)utils_package.vhdl $(SCRDIR)pulse_gene_package.vhdl $(SRCDIR)DAC_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_gene_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_gene.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_emulators.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_gene_test.vhdl
-	$(GHDL_PROG) -e $(VFLAGS) Pulses_bundle_test
-	$(GHDL_PROG) -r $(VFLAGS) Pulses_bundle_test --vcd=$(WAVDESTDIR)Pulses_bundle_test.wav 2>&1 | tee $(DESTDIR)Pulses_bundle_test.out.txt
+	$(GHDL_PROG) -e $(VFLAGS) Pulses_bundle_test_default_controler
+	$(GHDL_PROG) -r $(VFLAGS) Pulses_bundle_test_default_controler --vcd=$(WAVDESTDIR)Pulses_bundle_test.wav 2>&1 | tee $(DESTDIR)Pulses_bundle_test.out.txt
 
 amplitude_parts_simul : $(SCRDIR)amplitude.vhdl $(SCRDIR)amplitude_test.vhdl $(SCRDIR)utils_package.vhdl $(SCRDIR)amplitude_package.vhdl 
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl
