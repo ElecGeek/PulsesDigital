@@ -120,6 +120,10 @@ package Pulses_pac is
       --! Master clock
       CLK           : in  std_logic;
       RST           : in  std_logic;
+      --!
+      start         : in  std_logic;
+      --! The frame is over
+      ready         : out std_logic;
       --! Addr to be concatenated with the low. Should only be passed to the RAM.
       RAM_addr_high : out std_logic_vector(StateNumbers_2_BitsNumbers(chans_number+1) - 1 downto 0);
       --! Addr to be concatenated with the high. Tells which data is performed.
@@ -130,9 +134,7 @@ package Pulses_pac is
       --!   in the second step (addr_low = '1')
       EN_process    : out std_logic;
       --! Enables one DAC wrapper
-      EN            : out std_logic_vector(chans_number - 1 downto 0);
-      --! Enable all the DACS to transfer into their working registers
-      EN_out        : out std_logic);
+      EN            : out std_logic_vector(chans_number - 1 downto 0));
   end component Pulses_sequencer;
 
 --! @brief Handles N pulse channels

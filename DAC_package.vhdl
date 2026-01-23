@@ -96,6 +96,8 @@ package DAC_package is
       RST_init          : in  std_logic;
       --! Start signal
       start             : in  std_logic;
+      --! The frame is over
+      ready             : out std_logic;
       --! Not used
       data_serial       : out std_logic_vector(nbre_DACs_used - 1 downto 0);
       --! Not used
@@ -135,6 +137,8 @@ package DAC_package is
       RST_init          : in  std_logic;
       --! Start signal
       start             : in  std_logic;
+      --! The cycle is over
+      ready             : out std_logic;
       --!
       --! The vector is one element per DAC circuit on the PCB
       data_serial       : out std_logic_vector;
@@ -185,7 +189,7 @@ package DAC_package is
       CLK                : in  std_logic;
       --! The data values are always sent to the DAC component as
       --! a sign and a value.
-      --! The process depends if the mode is totempole or not.
+      --! The process depends if the mode is totem-pole or not.
       polar_pos_not_neg  : in  std_logic;
       data_in            : in  std_logic_vector(data_size - 1 downto 0);
       data_strobe        : in  std_logic;
@@ -228,6 +232,8 @@ package DAC_package is
       CLK               : in  std_logic;
       RST_init          : in  std_logic;
       start             : in  std_logic;
+      -- The frame is over
+      ready             : out std_logic;
       --! See in the type definition
       registers_control : out registers_control_st;
       CLK_serial        : out std_logic;

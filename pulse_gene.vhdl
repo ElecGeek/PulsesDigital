@@ -9,7 +9,7 @@ use ieee.std_logic_1164.all,
 --! 
 entity Pulses_stateMachine is
   generic (
-    --! Delay between the positive and the negative pulse (or vice versa.
+    --! Delay between the positive and the negative pulse (or vice versa).
     --! It should be at least one to send a 0 in case of a totem-pole output.
     --! For more information, see in the DAC package.
     separ_pulses : positive := 1;
@@ -220,6 +220,10 @@ entity Pulses_sequencer is
     --! Master clock
     CLK           : in  std_logic;
     RST           : in  std_logic;
+--!
+    start         : in  std_logic;
+--! The frame is over
+    ready         : out std_logic;
 --! Which channel    
     RAM_addr_high : out std_logic_vector(StateNumbers_2_BitsNumbers(chans_number + 1) - 1 downto 0);
 --! Which data
@@ -230,20 +234,14 @@ entity Pulses_sequencer is
 --!   in the second step (addr_low = "1")
     EN_process    : out std_logic;
 --! Enables one DAC wrapper
-    EN            : out std_logic_vector(chans_number - 1 downto 0);
---! Enable all the DACS to transfer into their running registers
-    EN_out        : out std_logic);
+    EN            : out std_logic_vector(chans_number - 1 downto 0));
 end entity Pulses_sequencer;
 
 architecture arch of Pulses_sequencer is
   constant extra_RAM_addr_bits : natural := 0;
   --! The high bits of the RAM are the channel number. The low bits are the internal data to be processed
 --  signal RAM_global_addr       : std_logic_vector(RAM_addr'length + extra_RAM_addr_bits - 1 downto 0);
-  signal sequencer_state       : std_logic_vector(2 downto 0);
-  signal channel_not_global    : std_logic;
-  signal current_chan          : std_logic_vector(StateNumbers_2_BitsNumbers(chans_number + 1) - 1 downto 0);
-  constant extra_cycles_max    : integer := StateNumbers_2_BitsNumbers(MasterCLK_SampleCLK_ratio - (chans_number+1)*4);
-  signal extra_cycles_count    : std_logic_vector(extra_cycles_max - 1 downto 0);
+  signal sequencer_state       : std_logic_vector(3 downto 0);
   -- Round to the power 2 above
   signal EN_shift              : std_logic_vector(2**StateNumbers_2_BitsNumbers(chans_number + 1) - 1 downto 0);
 begin
@@ -253,99 +251,46 @@ begin
   begin
     if rising_edge(CLK) then
       RST_if : if RST = '0' then
-        if channel_not_global = '1' then
-          -- We are running the individual state machines
-          case sequencer_state is
-            when "001" | "101" =>
-              RAM_read                                                            <= '0';
-              EN_process                                                          <= '1';
-              sequencer_state(sequencer_state'low + 1 downto sequencer_state'low) <= "10";
-            when "010" =>
-              EN_process      <= '0';
-              RAM_write       <= '1';
-              sequencer_state <= "011";
-            when "110" =>
-              EN_process      <= '0';
-              RAM_write       <= '1';
-              sequencer_state <= "111";
-            when "011" =>
-              RAM_write       <= '0';
-              sequencer_state <= "100";
-            when "111" =>
-              RAM_write                                                    <= '0';
-              sequencer_state                                              <= "000";
-              EN_shift(EN_shift'low + to_integer(unsigned(RAM_addr_high))) <= '1';
-              if RAM_addr_high = std_logic_vector(to_unsigned(chans_number - 1, RAM_addr_high'length)) then
-                channel_not_global <= '0';
-              end if;
-            when "100" =>
-              RAM_read        <= '1';
-              RAM_addr_low    <= "1";
-              sequencer_state <= "101";
-            -- In fact "000"
-            when others =>
-              EN_shift        <= (others => '0');
-              RAM_read        <= '1';
+        -- We are running the individual state machines
+        case sequencer_state is
+          when "0001" | "0110" =>
+            RAM_read        <= '1';
+            sequencer_state <= std_logic_vector(unsigned(sequencer_state) + 1);
+          when "0010" | "0111" =>
+            RAM_read        <= '0';
+            EN_process      <= '1';
+            sequencer_state <= std_logic_vector(unsigned(sequencer_state) + 1);
+          when "0011" | "1000" =>
+            RAM_write       <= '1';
+            EN_process <= '0';
+            sequencer_state <= std_logic_vector(unsigned(sequencer_state) + 1);
+          when "0100" =>
+            RAM_write       <= '0';
+            sequencer_state <= std_logic_vector(unsigned(sequencer_state) + 1);
+          when "1001" =>
+            RAM_write                                                    <= '0';
+            EN_shift(EN_shift'low + to_integer(unsigned(RAM_addr_high))) <= '1';
+            sequencer_state                                              <= (others => '0');
+          when "0101" =>
+            RAM_addr_low(0) <= '1';
+            sequencer_state <= std_logic_vector(unsigned(sequencer_state) + 1);
+          -- In fact $0000
+          when others =>
+            EN_shift        <= (others => '0');
+            RAM_addr_low(0) <= '0';
+            if RAM_addr_high /= std_logic_vector(to_unsigned(chans_number - 1, RAM_addr_high'length)) then
               RAM_addr_high   <= std_logic_vector(unsigned(RAM_addr_high) + 1);
-              RAM_addr_low    <= "0";
-              sequencer_state <= "001";
-          end case;
-        else
-          -- We are activating the global enable or waiting TODO for longer DAC
-          case sequencer_state is
-            -- Only "100" is used in the series "1xx". But be symmetric in order
-            --   to avoid un-useful logic
-            when "001" | "101" =>
-              EN_out          <= '0';
-              RAM_read        <= '0';
-              sequencer_state <= "010";
-            when "010" =>
-              RAM_write       <= '1';
-              sequencer_state <= "011";
-            when "110" =>
-              RAM_write       <= '1';
-              sequencer_state <= "111";
-            when "011" | "111" =>
-              RAM_write          <= '0';
-              extra_cycles_count <= (others => '0');
-              sequencer_state    <= "100";
-            when "100" =>
-              EN_out <= '0';
-              -- Check now for the extra clock cycles
-              EXTRA_C_if : if extra_cycles_max > 0 then
-                if extra_cycles_count /= std_logic_vector(to_unsigned(extra_cycles_max, extra_cycles_count'length)) then
-                  extra_cycles_count <= std_logic_vector(unsigned(extra_cycles_count) + 1);
-                else
-                  sequencer_state    <= "001";
-                  RAM_addr_high      <= (others => '0');
-                  RAM_addr_low       <= "0";
-                  channel_not_global <= '1';
-                  RAM_read           <= '1';
-                end if;
-              else
-                sequencer_state    <= "001";
-                RAM_addr_high      <= (others => '0');
-                RAM_addr_low       <= "0";
-                channel_not_global <= '1';
-                RAM_read           <= '1';
-              end if EXTRA_C_if;
-            -- in fact "000"
-            when others =>
-              EN_out        <= '1';
-              EN_shift      <= (others => '0');
-              RAM_addr_high <= std_logic_vector(to_unsigned(chans_number, RAM_addr_high'length));
-              RAM_addr_low  <= "0";
-              if has_extra_RAM_op then
-                sequencer_state <= "001";
-                RAM_read        <= '1';
-              else
-                extra_cycles_count <= (others => '0');
-                sequencer_state    <= "100";
-              end if;
-          end case;
-        end if;
+              sequencer_state <= "0001";
+            elsif start = '1' then
+              ready           <= '0';
+              RAM_addr_high   <= (others => '0');
+              sequencer_state <= "0001";
+            else
+              ready <= '1';
+            end if;
+        end case;
       else
-        RAM_addr_high <= (others => '0');
+        RAM_addr_high <= ( others => '0' );
       end if RST_if;
     end if;
   end process main_proc;
@@ -378,6 +323,7 @@ entity Pulses_bundle is
     CLK                : in  std_logic;
     RST                : in  std_logic;
     start              : in  std_logic;
+    ready              : out std_logic;
 --! TEMPORARY
     priv_amplitude_new : in  std_logic_vector (15 downto 0);
     --! TODO set the inputs amplitude and the volume
@@ -422,7 +368,6 @@ architecture arch of Pulses_bundle is
   signal EN_process        : std_logic;
   signal EN                : std_logic_vector(chans_number - 1 downto 0);
   signal amplitude_for_DAC : std_logic_vector(15 downto 0);
-  signal EN_out            : std_logic;
 begin
   assert priv_amplitude_in'length >= (state_length + counter_length)
     report "in this version, the amplitude size should be at least the state size (3) plus the counter size"
@@ -490,15 +435,16 @@ begin
       MasterCLK_SampleCLK_ratio => MasterCLK_SampleCLK_ratio
       )
     port map(
-      CLK           => CLK,
-      RST           => RST,
+      CLK,
+      RST,
+      start,
+      ready,
       RAM_addr_high => RAM_addr_high,
       RAM_addr_low  => RAM_addr_low,
       RAM_read      => RAM_read,
       RAM_write     => RAM_write,
       EN_process    => EN_process,
-      EN            => EN,
-      EN_out        => EN_out);
+      EN            => EN);
 
 -- This runs on the second step of each channel
 --   (RAM_addr_low = '1'), then it takes the
@@ -562,7 +508,7 @@ configuration DAC_default_controler of Pulses_bundle is
 --    for DAC_bundle_instanc : DAC_bundle_dummy
 --      use entity work.DAC_bundle_real_outputs;
 --    end for;
-    
+
   end for;
 end configuration DAC_default_controler;
 

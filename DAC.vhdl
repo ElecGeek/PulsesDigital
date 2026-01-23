@@ -45,6 +45,8 @@ entity DAC_bundle_dummy is
     EN                : in  std_logic_vector(channels_number - 1 downto 0);
     RST_init          : in  std_logic;
     start             : in  std_logic;
+    --! The frame is over
+    ready             : out std_logic;
     data_serial       : out std_logic_vector;
     CLK_serial        : out std_logic_vector;
     transfer_serial   : out std_logic_vector;
@@ -74,6 +76,7 @@ begin
     update_serial(ind) <= 'W';
   end generate;
 
+  ready <= not start;
   channel_generate : for ind in 0 to channels_number - 1 generate
     DAC_dummy_channel_instanc : DAC_dummy_channel port map(
       CLK,
@@ -107,6 +110,8 @@ entity DAC_bundle_real_outputs is
     RST_init          : in  std_logic;
     --! To be passed to the sequencer for the start
     start             : in  std_logic;
+    --! The frame is over
+    ready             : out std_logic;
     --! One bit per DAC circuit
     data_serial       : out std_logic_vector(nbre_DACs_used - 1 downto 0);
     --! One bit or more, depending the PCB
@@ -211,6 +216,7 @@ begin
       CLK,
       RST_init,
       start,
+      ready,
       registers_control,
       CLK_serial      => CLK_serial_s,
       transfer_serial => transfer_serial_s,
@@ -223,10 +229,10 @@ end architecture arch;
 --! For more information, see the controller.\n
 --! There are 2 registers:
 --! * The data working register is (parallel) loaded from the data register.
---!   If the mode is not totempole, the negative polarity is computed.
---!   If the mode is totempole, the data is left as it.
+--!   If the mode is not totem-pole, the negative polarity is computed.
+--!   If the mode is totem-pole, the data is left as it.
 --! * The DAC address low bit is loaded from the polarity.
---!   It the mode is not totempole, this bit is never selected by the controller.\n
+--!   It the mode is not totem-pole, this bit is never selected by the controller.\n
 --! The controller asks:
 --! * to take the low address bit, and shift from the previous component
 --! * to take the low bit of the working register, to shift it and
@@ -242,7 +248,7 @@ use ieee.std_logic_1164.all,
 entity Buffer_and_working_registers is
   generic (
     --! Used for multiple output DACs,
-    --! In the case of totempole, it is the address multiplied by 2, plus one or not
+    --! In the case of totem-pole, it is the address multiplied by 2, plus one or not
     --!   in case of the polarity.
     --! Otherwise, it is the full address.
     register_position : natural;
@@ -402,6 +408,7 @@ entity Controler_default is
     CLK               : in  std_logic;
     RST_init          : in  std_logic;
     start             : in  std_logic;
+    ready             : out std_logic;
     --! See in the type definition
     registers_control : out registers_control_st;
     CLK_serial        : out std_logic;
@@ -464,7 +471,7 @@ begin  -- architecture arch
     ") is lower than " & positive'image(DAC_number_outputs) & ", some project outputs are lost" severity error;
   assert mode_totempole or
     nbre_outputs_per_DAC /= DAC_number_outputs
-    report "Instantiating a set/one DAC with " & positive'image(DAC_number_outputs) & " outputs in not totempole mode"
+    report "Instantiating a set/one DAC with " & positive'image(DAC_number_outputs) & " outputs in not totem-pole mode"
     severity note;
   assert not mode_totempole or
     nbre_outputs_per_DAC >= (DAC_number_outputs / 2)
@@ -476,7 +483,7 @@ begin  -- architecture arch
     ") is lower than " & positive'image(DAC_number_outputs/2) & ", some project outputs are lost" severity error;
   assert not mode_totempole or
     nbre_outputs_per_DAC /= (DAC_number_outputs / 2)
-    report "Instantiating a set/one DAC with " & positive'image(DAC_number_outputs/2) & " outputs in totempole mode"
+    report "Instantiating a set/one DAC with " & positive'image(DAC_number_outputs/2) & " outputs in totem-pole mode"
     severity note;
 
 
@@ -524,7 +531,9 @@ begin  -- architecture arch
                 registers_control(0)          <= write_with_or_without_update_cmd(write_with_or_without_update_cmd'high);
               end if;
               main_counter <= std_logic_vector(unsigned(main_counter) + 1);
-
+              ready <= '0';
+              -- The frame contains more then one data to send.
+              -- Then it respawns automatically
             elsif address_bits /= address_counter_min then
               if write_with_or_without_update_cmd(write_with_or_without_update_cmd'high) = '-' then
                 registers_control <= "110";
@@ -533,6 +542,11 @@ begin  -- architecture arch
                 registers_control(0)          <= write_with_or_without_update_cmd(write_with_or_without_update_cmd'high);
               end if;
               main_counter <= std_logic_vector(unsigned(main_counter) + 1);
+              -- The frame is over and we are waiting for the next start
+            else
+              -- To avoid a dead lock,
+              -- or in case there is a need to have more idles (see below)
+              ready <= '1';
             end if START_CONT_WAIT;
 
           elsif to_integer(unsigned(main_counter)) < write_with_or_without_update_cmd'length then
@@ -589,7 +603,7 @@ begin  -- architecture arch
             -- This is probably simplified as it is a basic increment
             -- with a roll over when reach the mast one.
             -- Since it is an example, some other entities might handle
-            --   for instance 6 outputs DAC, or 5 outputs DAC non totempole.
+            --   for instance 6 outputs DAC, or 5 outputs DAC non totem-pole.
             if address_counter /= address_counter_max then
               address_counter <= std_logic_vector(unsigned(address_counter) + 1);
             else
@@ -600,7 +614,10 @@ begin  -- architecture arch
             -- Since there is a one bit latch (in the register component)
             -- after the selector 0, 1, -, data, address the transfer is delayed
             transfer_serial <= '1';
-
+            if address_bits = address_counter_max then
+            -- The ready is set to 1 now. The idle cycle is only 1
+              ready <= '1';
+            end if;
           end if MAIN_IF_DISPATCH;
 
         end if DAC_CLK_divider;

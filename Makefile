@@ -12,7 +12,13 @@ YOSYS_PROG?=yosys
 NEXTPNR-ICE40_PROG?=nextpnr-ice40
 ICEPACK?=icepack
 
+# The documentation of the test targets is in the xxx_test.vhdl file.
 
+# The DAC configuration configurates all the project.
+# Then any change supposed to pass again all the test form 1 to N
+#   in this order. The xA, xB, xC etc can be passed in random order
+
+# Test 1A, verify your DAC works correctly
 DAC_simul : $(SCRDIR)DAC.vhdl $(SCRDIR)DAC_test.vhdl $(SCRDIR)DAC_package.vhdl $(SCRDIR)DAC_configure.vhdl $(SRCDIR)DAC_emulators.vhdl
 	rm -f work-obj08.cf
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl
@@ -25,10 +31,11 @@ DAC_simul : $(SCRDIR)DAC.vhdl $(SCRDIR)DAC_test.vhdl $(SCRDIR)DAC_package.vhdl $
 #	$(GHDL_PROG) -e $(VFLAGS) DAC_test
 	$(GHDL_PROG) -r $(VFLAGS) DAC_test_default_controler --vcd=$(WAVDESTDIR)DAC_test.wav 2>&1 | tee $(DESTDIR)DAC_test.out.txt
 #	$(GHDL_PROG) -r $(VFLAGS) DAC_test --vcd=$(WAVDESTDIR)DAC_test.wav 2>&1 | tee $(DESTDIR)DAC_test.out.txt
-# There are many small and fast entities to simulate
-# Then they are together 
+
+# Test 1B, verify the pulses are correctly generated from the computed amplitude inside one frame
 pulse_parts_simul : $(SCRDIR)pulse_gene.vhdl $(SCRDIR)pulse_gene_test.vhdl $(SCRDIR)utils_package.vhdl $(SCRDIR)pulse_gene_package.vhdl 
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_gene_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_gene.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_gene_test.vhdl
@@ -44,7 +51,7 @@ pulse_bundle_simul : $(SCRDIR)pulse_gene.vhdl $(SCRDIR)pulse_gene_test.vhdl  $(S
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_gene.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_emulators.vhdl
-	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_gene_test.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_bundle_test.vhdl
 	$(GHDL_PROG) -e $(VFLAGS) Pulses_bundle_test_default_controler
 	$(GHDL_PROG) -r $(VFLAGS) Pulses_bundle_test_default_controler --vcd=$(WAVDESTDIR)Pulses_bundle_test.wav 2>&1 | tee $(DESTDIR)Pulses_bundle_test.out.txt
 

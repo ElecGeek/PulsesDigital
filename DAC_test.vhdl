@@ -5,6 +5,24 @@ use ieee.std_logic_1164.all,
   work.DAC_package.all,
   work.DAC_emulators_package.all;
 
+--! @brief Test of the DAC signal generator using a wave viewer
+--!
+--! Generates a couple of values and cast them
+--!   in the same way the pulse bundle would have do.
+--! Runs the DAC controler to generate the serial data and the hanshake signals.
+--! Runs a DAC emulator, in order to convert (back) into parrallel for verification.\n
+--! That assume the emulator has verified by proof reading.\n
+--! The assertion notes display the configuration that has been understood.\n
+--! It is supposed to be re-run in case the DAC configuration is changed.
+--! The scope can be the channels number and organisation
+--!   found in the DAC_package.vhdl file
+--! The scope can be the DAC model found in the DAC_configure.vhdl file TODO.
+--! However, there is no need in case the quantity of control line is changed
+--!   during the PCB design.\n
+--! TODO Check automatically the result is correct.\n
+--! TODO Ensure all the constants of the configuration
+--!   come from the DAC_package, rather than the generics. 
+
 entity DAC_test is
 
 end entity DAC_test;
@@ -28,12 +46,19 @@ architecture arch of DAC_test is
   signal channel_counter     : unsigned(channel_counter_bits - 1 downto 0) := (others => '0');
   signal channel_counter_max : unsigned(channel_counter'range) :=
     to_unsigned(channels_number - 1, channel_counter'length);
-  -- The data size is added by 1 in order to have a "carry" bit
-  -- The data size is added by 2 in order to have 4 windows for 4 channels
-  signal data_counter : unsigned(1 + data_size + channels_number - 1 downto 0) := (others => '0');
-  signal data_counter_max : unsigned(data_counter'range) := (data_counter'high    => '1',
-                                                             data_counter'low + 2 => '1',
-                                                             others               => '0');
+  -- The data size is added by 1 in order to have a "carry" bit.
+  --   The max is counter'high and some re-run of the first simulations
+  --   that may be wrong due to the reset, warm up etc...
+  -- The data size is added by 1 in order to contain the sign bit.
+  -- The data size is added by N which is the smallest value
+  --   that channels_number <= 2**N
+  signal data_counter : unsigned(1 +
+                                 1 +
+                                 data_size +
+                                 StateNumbers_2_BitsNumbers(channels_number) -
+                                 1
+                                 downto 0);
+  signal data_counter_max : unsigned(data_counter'range);
   signal data_absolute_value : std_logic_vector(data_size - 1 downto 0);
   signal polar_pos_not_neg   : std_logic;
   signal EN                  : std_logic_vector(channels_number - 1 downto 0);
@@ -53,8 +78,16 @@ begin
 
   main_proc : process is
     variable EN_var : std_logic_vector(EN'range);
+    variable data_counter_max_v : unsigned(data_counter_max'range);
   begin
     if data_counter /= data_counter_max then
+      if RST(RST'high) = '1' then
+        data_counter <= (others => '0');
+        data_counter_max_v := (others => '0');
+        data_counter_max_v(data_counter_max'high) := '1';
+        data_counter_max_v(data_counter_max'low + StateNumbers_2_BitsNumbers(channels_number)) := '1';
+        data_counter_max <= data_counter_max_v;
+      end if;
       RST(RST'high - 1 downto RST'low) <= RST(RST'high downto RST'low+1);
       RST(RST'high)                    <= '0';
       CLK_IF : if CLK = '1' then
@@ -118,6 +151,7 @@ begin
       EN              => EN,
       RST_init        => RST(RST'low),
       start           => the_start,
+      ready           => open,
       data_serial     => data_serial,
       CLK_serial      => CLK_serial,
       transfer_serial => transfer_serial,
