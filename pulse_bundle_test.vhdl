@@ -12,7 +12,6 @@ use ieee.std_logic_1164.all,
 --! 
 entity Pulses_bundle_test is
   generic (
-    chans_number              : integer range 2 to 300 := 4;
     MasterCLK_SampleCLK_ratio : integer range 10 to 40 := 22
     );
 end entity Pulses_bundle_test;
@@ -63,7 +62,6 @@ begin
 
   Pulses_bundle_instanc : Pulses_bundle
     generic map(
-      chans_number              => 4,
       MasterCLK_SampleCLK_ratio => 22
       )
     port map(

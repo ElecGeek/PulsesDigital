@@ -44,12 +44,14 @@ pulse_parts_simul : $(SCRDIR)pulse_gene.vhdl $(SCRDIR)pulse_gene_test.vhdl $(SCR
 	$(GHDL_PROG) -e $(VFLAGS) Pulses_sequencer_test
 	$(GHDL_PROG) -r $(VFLAGS) Pulses_sequencer_test --vcd=$(WAVDESTDIR)Pulses_sequencer_test.wav 2>&1 | tee $(DESTDIR)Pulses_sequencer_test.out.txt
 
+# Test 2
 pulse_bundle_simul : $(SCRDIR)pulse_gene.vhdl $(SCRDIR)pulse_gene_test.vhdl  $(SCRDIR)utils_package.vhdl $(SCRDIR)pulse_gene_package.vhdl $(SRCDIR)DAC_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl
-	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_gene_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_gene_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_gene.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_bundle.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_emulators.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_bundle_test.vhdl
 	$(GHDL_PROG) -e $(VFLAGS) Pulses_bundle_test_default_controler

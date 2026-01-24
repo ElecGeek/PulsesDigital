@@ -92,6 +92,7 @@ library ieee;
 use ieee.std_logic_1164.all,
   ieee.numeric_std.all,
   work.Utils_pac.StateNumbers_2_BitsNumbers,
+  work.DAC_package.channels_number,
   work.Pulses_pac.pulses_sequencer;
 
 --! @brief Test one full frame generating the pulses using a wave viewer
@@ -104,7 +105,6 @@ use ieee.std_logic_1164.all,
 
 entity Pulses_sequencer_test is
   generic (
-    chans_number              : integer range 2 to 300 := 4;
     MasterCLK_SampleCLK_ratio : integer range 10 to 40 := 35
     );
 end entity Pulses_sequencer_test;
@@ -116,12 +116,12 @@ architecture arch of Pulses_sequencer_test is
   signal ready         : std_logic;
   signal counter       : unsigned(6 downto 0)         := (others => '0');
   constant counter_max : unsigned(counter'range)      := (others => '1');
-  signal RAM_addr_high : std_logic_vector(StateNumbers_2_BitsNumbers(chans_number+1) - 1 downto 0);
+  signal RAM_addr_high : std_logic_vector(StateNumbers_2_BitsNumbers(channels_number+1) - 1 downto 0);
   signal RAM_addr_low  : std_logic_vector(0 downto 0);
   signal RAM_read      : std_logic;
   signal RAM_write     : std_logic;
   signal EN_process    : std_logic;
-  signal EN            : std_logic_vector(chans_number - 1 downto 0);
+  signal EN            : std_logic_vector(channels_number - 1 downto 0);
 
 begin
   start <= ready;
@@ -143,7 +143,6 @@ begin
 
   Pulses_sequencer_instanc : Pulses_sequencer
     generic map(
-      chans_number              => chans_number,
       MasterCLK_SampleCLK_ratio => MasterCLK_SampleCLK_ratio,
       has_extra_RAM_op          => false
       )

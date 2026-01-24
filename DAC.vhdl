@@ -622,6 +622,7 @@ begin  -- architecture arch
 
         end if DAC_CLK_divider;
       else
+        ready <= '1';
         is_initialised  <= '0';
         main_counter    <= (others => '0');
         address_counter <= address_counter_min;

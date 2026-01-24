@@ -1,6 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all,
-  work.Utils_pac.StateNumbers_2_BitsNumbers;
+  work.Utils_pac.StateNumbers_2_BitsNumbers,
+  work.DAC_package.channels_number;
 
 --! @brief N channels pulses generator
 --!
@@ -110,7 +111,6 @@ package Pulses_pac is
   --!   * loop
   component Pulses_sequencer is
     generic (
-      chans_number              : integer range 2 to 300 := 4;
       MasterCLK_SampleCLK_ratio : integer range 10 to 40;
       --! Does one more RAM operation.
       --! This is set by the bundle, and should be modified
@@ -125,7 +125,7 @@ package Pulses_pac is
       --! The frame is over
       ready         : out std_logic;
       --! Addr to be concatenated with the low. Should only be passed to the RAM.
-      RAM_addr_high : out std_logic_vector(StateNumbers_2_BitsNumbers(chans_number+1) - 1 downto 0);
+      RAM_addr_high : out std_logic_vector(StateNumbers_2_BitsNumbers(channels_number+1) - 1 downto 0);
       --! Addr to be concatenated with the high. Tells which data is performed.
       RAM_addr_low  : out std_logic_vector(0 downto 0);
       RAM_read      : out std_logic;
@@ -134,7 +134,7 @@ package Pulses_pac is
       --!   in the second step (addr_low = '1')
       EN_process    : out std_logic;
       --! Enables one DAC wrapper
-      EN            : out std_logic_vector(chans_number - 1 downto 0));
+      EN            : out std_logic_vector(channels_number - 1 downto 0));
   end component Pulses_sequencer;
 
 --! @brief Handles N pulse channels
@@ -144,7 +144,6 @@ package Pulses_pac is
 --! TODO document the commands
   component Pulses_bundle is
     generic (
-      chans_number              : integer range 2 to 300 := 4;
       MasterCLK_SampleCLK_ratio : integer range 10 to 40 := 24
       );
     port (
