@@ -2,6 +2,8 @@ library ieee;
 use ieee.std_logic_1164.all,
   ieee.numeric_std.all,
   work.Utils_pac.StateNumbers_2_BitsNumbers,
+  work.Amplitude_package.requested_amplitude_size,
+  work.Amplitude_package.global_volume_size,
   work.DAC_package.all,
   work.DAC_emulators_package.all;
 
@@ -54,12 +56,16 @@ architecture arch of DAC_test is
   --   that channels_number <= 2**N
   signal data_counter : unsigned(1 +
                                  1 +
-                                 data_size +
+                                 requested_amplitude_size + global_volume_size +
                                  StateNumbers_2_BitsNumbers(channels_number) -
                                  1
                                  downto 0);
   signal data_counter_max : unsigned(data_counter'range);
-  signal data_absolute_value : std_logic_vector(data_size - 1 downto 0);
+  -- Send some keep alive messages
+  constant debug_size : positive := 5;
+  signal data_counter_debug : unsigned(data_counter'high - debug_size downto data_counter'low) := (others => '1');
+
+  signal data_absolute_value : std_logic_vector(requested_amplitude_size + global_volume_size - 1 downto 0);
   signal polar_pos_not_neg   : std_logic;
   signal EN                  : std_logic_vector(channels_number - 1 downto 0);
   signal RST                 : unsigned(20 downto 0) := (others => '1');
@@ -74,7 +80,7 @@ begin
 -- GHDL 5 does not accept (xyz'high => '1', others => '0')
   -- claiming xyz'high is not constant
 --  main_counter_max(main_counter'high)             <= '1';
-  --main_counter_max(main_counter'high - data_size) <= '1';
+  --main_counter_max(main_counter'high - requested_amplitude_size + global_volume_size) <= '1';
 
   main_proc : process is
     variable EN_var : std_logic_vector(EN'range);
@@ -131,6 +137,10 @@ begin
             end if;
           else
             data_counter <= data_counter + 1;
+            if data_counter(data_counter_debug'high downto data_counter_debug'low ) = data_counter_debug then
+              assert false report integer'image(to_integer(data_counter(data_counter'high downto data_counter'high - debug_size + 1 ))+1) &
+                "/" & integer'image(2**(debug_size - 1 )) & " done" severity note;
+        end if;
           end if;
         end if;
       end if CLK_IF;
@@ -178,7 +188,9 @@ end architecture arch;
 configuration DAC_test_default_controler of DAC_test is
   for arch
     for DAC_bundle_instanc : DAC_bundle_dummy
-      use entity work.DAC_bundle_real_outputs;
+      use entity work.DAC_bundle_real_outputs
+        generic map (
+          output_offset => 9);
     end for;
     for DAC_emulator_instanc : DAC_emulator
       use entity work.DAC_emulator_model_1

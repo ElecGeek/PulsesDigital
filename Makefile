@@ -22,6 +22,7 @@ ICEPACK?=icepack
 DAC_simul : $(SCRDIR)DAC.vhdl $(SCRDIR)DAC_test.vhdl $(SCRDIR)DAC_package.vhdl $(SCRDIR)DAC_configure.vhdl $(SRCDIR)DAC_emulators.vhdl
 	rm -f work-obj08.cf
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC.vhdl
 #	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_configure.vhdl
@@ -35,6 +36,7 @@ DAC_simul : $(SCRDIR)DAC.vhdl $(SCRDIR)DAC_test.vhdl $(SCRDIR)DAC_package.vhdl $
 # Test 1B, verify the pulses are correctly generated from the computed amplitude inside one frame
 pulse_parts_simul : $(SCRDIR)pulse_gene.vhdl $(SCRDIR)pulse_gene_test.vhdl $(SCRDIR)utils_package.vhdl $(SCRDIR)pulse_gene_package.vhdl 
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_gene_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_gene.vhdl
@@ -47,6 +49,7 @@ pulse_parts_simul : $(SCRDIR)pulse_gene.vhdl $(SCRDIR)pulse_gene_test.vhdl $(SCR
 # Test 2
 pulse_bundle_simul : $(SCRDIR)pulse_gene.vhdl $(SCRDIR)pulse_gene_test.vhdl  $(SCRDIR)utils_package.vhdl $(SCRDIR)pulse_gene_package.vhdl $(SRCDIR)DAC_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_gene_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC.vhdl
@@ -118,6 +121,9 @@ pulse_gene_low_level_cxxrtl : $(SCRDIR)pulse_gene_test.vhdl $(SCRDIR)pulse_gene_
 	mkdir -p $(SYNTHDESTDIR)
 	$(YOSYS_PROG) -m ghdl -p '$(GHDL_PROG) $(VFLAGS) Pulses_bundle; write_cxxrtl $(SYNTHDESTDIR)pulse_gene_lowlevel.rtl.cxx' 2>&1 |tee $(SYNTHDESTDIR)pulse_gene_lowlevel.synth.out.txt
 
+
+all_simul : DAC_simul pulse_parts_simul pulse_bundle_simul amplitude_parts_simul
+	@echo "Done"
 
 clean	:
 	rm -f work-obj93.cf work-obj08.cf 

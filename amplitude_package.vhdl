@@ -13,22 +13,29 @@ use ieee.std_logic_1164.all,
 --!   * the normalized requested amplitude
 --! For each computation, it produces
 --!   * The actual amplitude.\n
---! For resources optimisations
+--! For resources optimizations
 --!   * the multiplication is made using successive additions
 --!     if the corresponding bit of the other operand is '1'
---!   * the output is slightly modified to be close to the range 0 to rail.
+--!   * TODO the output is slightly modified to be close to the range 0 to rail.
 --!     For more information, see in the entity.
+--! The propagation delays of the carry should be able to handle
+--!   a vector with a size of the sum requested_amplitude_size plus global_volume_size.
 
-package Amplitude_pac is
-
+package Amplitude_package is
+  --! This work around is going to be used until I install a version of GHDL
+  --! that fixes the 3102 issue.
+  constant requested_amplitude_size : integer range 2 to 100 := 10;
+  constant global_volume_size       : integer range 2 to 100 := 6; 
+  --! generic (
+  --!     requested_amplitude_size    : integer range 2 to 100 := 4;
+  --!     constant global_volume_size : integer range 2 to 100 := 4
+  --! );
+  
   component Amplitude_multiplier is
     generic (
       --! Does not impact anything.
       --! It is only to notice the relevance of the computation 
-      MasterCLK_SampleCLK_ratio      : integer range 10 to 100;
-      --! Does not impact anything.
-      --! It is only to notice the relevance of the computation 
-      Channels_number : integer range 2 to 300
+      MasterCLK_SampleCLK_ratio      : integer range 10 to 100
       );
     port (
       --! Master clock
@@ -47,4 +54,4 @@ package Amplitude_pac is
 
   end component Amplitude_multiplier;
   
-end package Amplitude_pac;
+end package Amplitude_package;

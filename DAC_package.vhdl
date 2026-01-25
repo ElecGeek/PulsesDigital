@@ -87,7 +87,7 @@ package DAC_package is
     port(
       CLK               : in  std_logic;
       polar_pos_not_neg : in  std_logic;
-      data_in           : in  std_logic_vector(data_size - 1 downto 0);
+      data_in           : in  std_logic_vector;
       -- Temporary, may be replaced by the channel number
       EN                : in  std_logic_vector(channels_number - 1 downto 0);
       --! The sequencer always run. During the reset, 0 values are coming
@@ -125,10 +125,13 @@ package DAC_package is
   --! The master clock on the sample rate ratio is "normal" for a dual DAC,
   --!   and is higher only for a quad, a 6th etc...
   component DAC_bundle_real_outputs is
+    generic(
+      output_offset     : natural := 11
+      );
     port(
       CLK               : in  std_logic;
       polar_pos_not_neg : in  std_logic;
-      data_in           : in  std_logic_vector(data_size - 1 downto 0);
+      data_in           : in  std_logic_vector;
       -- Temporary, may be replaced by the channel number
       EN                : in  std_logic_vector(channels_number - 1 downto 0);
       --! The sequencer always run. During the reset, 0 values are coming
@@ -184,14 +187,15 @@ package DAC_package is
       --! Used for multiple output DACs, to generate the index for some debug notes
       register_position : natural;
       --! Used for multiple DACs, to generate its index for some debug notes      
-      DAC_chain_number  : natural);
+      DAC_chain_number  : natural;
+      output_offset     : natural);
     port (
       CLK                : in  std_logic;
       --! The data values are always sent to the DAC component as
       --! a sign and a value.
       --! The process depends if the mode is totem-pole or not.
       polar_pos_not_neg  : in  std_logic;
-      data_in            : in  std_logic_vector(data_size - 1 downto 0);
+      data_in            : in  std_logic_vector;
       data_strobe        : in  std_logic;
       --! See in the type definition
       registers_control  : in  registers_control_st;

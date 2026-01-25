@@ -1,6 +1,8 @@
 library ieee;
 use ieee.std_logic_1164.all,
-  ieee.numeric_std.all;
+  ieee.numeric_std.all,
+  work.Amplitude_package.requested_amplitude_size,
+  work.Amplitude_package.global_volume_size;
 
 --! @brief Computes the product of the theoretical amplitude by the volume.
 --!
@@ -29,10 +31,7 @@ entity Amplitude_multiplier is
   generic (
     --! Does not impact anything.
     --! It is only to notice the relevance of the computation
-    MasterCLK_SampleCLK_ratio : integer range 10 to 40;
-    --! Does not impact anything.
-    --! It is only to notice the relevance of the computation 
-    Channels_number           : integer range 2 to 300
+    MasterCLK_SampleCLK_ratio : integer range 10 to 40
     );
   port (
     --! Master clock
@@ -68,28 +67,12 @@ architecture arch of Amplitude_multiplier is
   end function GetShifts;
   constant N_shifts : natural := GetShifts(N'length, M'length);
 begin
-  assert N'length > 1
-    report "The N operand vector length " & integer'image(N'length) &
-    ") should have a length of at least 2"
-    severity failure;
-  assert M'length > 1
-    report "The M operand vector length " & integer'image(M'length) &
-    ") should have a length of at least 2"
-    severity failure;
   assert theOut'length > 3 report "to run, the M operand vector should have a length of at least 4" severity failure;
   assert theOut'length <= (N'length + M'length)
                           report " The size of the output (" & integer'image(theOut'length) & ")" &
                           " is bigger than the size of N+M (" & integer'image(N'length) & " and " &
                           integer'image(M'length) & "): irrelevant"
                           severity note;
-  assert (MasterCLK_SampleCLK_ratio > M'length / 2) or (Channels_number * 8 > M'length / 2)
-    report "The system can not process at least the half of the length of M (" & integer'image(M'length) &
-    "), it is a non-sense"
-    severity error;
-  assert (MasterCLK_SampleCLK_ratio > M'length) or (Channels_number * 8 > M'length)
-    report "The system can not process all the length of M (" & integer'image(M'length) &
-    "), some precision is lost"
-    severity warning;
   assert false
     report "Lengths [" & integer'image(N'length) & "]x[" & integer'image(M'length) &
     "] gain: " &
@@ -141,13 +124,11 @@ end architecture arch;
 
 library ieee;
 use ieee.std_logic_1164.all,
-  work.Amplitude_pac.Amplitude_multiplier;
+  work.Amplitude_package.requested_amplitude_size,
+  work.Amplitude_package.global_volume_size,
+  work.Amplitude_package.Amplitude_multiplier;
 
 entity Amplitude_multiplier_CXX_wrap is
-  generic (
-    M_size   : positive := 6;
-    N_size   : positive := 6;
-    Out_size : positive := 12);
   port (
     --! For more information see in the wrapped entity
     CLK     : in  std_logic;
@@ -156,11 +137,11 @@ entity Amplitude_multiplier_CXX_wrap is
     --! For more information see in the wrapped entity
     execR2R : in  std_logic;
     --! For more information see in the wrapped entity
-    M       : in  std_logic_vector(M_size - 1 downto 0);
+    M       : in  std_logic_vector(requested_amplitude_size - 1 downto 0);
     --! For more information see in the wrapped entity
-    N       : in  std_logic_vector(N_size - 1 downto 0);
+    N       : in  std_logic_vector(global_volume_size - 1 downto 0);
     --! For more information see in the wrapped entity
-    theOut  : out std_logic_vector(Out_size - 1 downto 0)
+    theOut  : out std_logic_vector(requested_amplitude_size + global_volume_size - 1 downto 0)
     );
 end entity Amplitude_multiplier_CXX_wrap;
 
@@ -169,8 +150,7 @@ architecture arch of Amplitude_multiplier_CXX_wrap is
 begin
   instanc : Amplitude_multiplier
     generic map (
-      MasterCLK_SampleCLK_ratio => 20,
-      Channels_number           => 2)
+      MasterCLK_SampleCLK_ratio => 20)
     port map (
       CLK     => CLK,
       load    => load,
