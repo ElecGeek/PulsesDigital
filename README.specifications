@@ -15,14 +15,21 @@ It is, in general, a short command set of bits followed by the bits of the value
 Some idle bits are the separator or the transfer signal.
 In case of a multiple output DAC, more than one DAC sequence is issued.
 
-* The frame handles one output sample.
-The master clock is the worst case of the following content:
-** It contains one or more DAC sequence, according with the number of outputs per DAC.
-** It applies thee "smoothing" to the pulses, one channel after the other.
-** It computes the state of the pulse, one channel after the other.
+* The frame handles some tasks related to the output. The master clock is the worst case (higher frequency) of these tasks:
+** It sends, in parallel, the data to all the output. According with the number of channels per DAC and the mode, one or more sequence is generated.
+In case of low reslution DACs, master clock on DAC CLK ratio 2 and one output per DAC, the ratio between the master clock and the sample clock is about 36 (8, 10 or 12 data bits and 4 control bits).
+In case of high resolution DACs, master clock on DAC CLK ratio 2 and two outputs per DAC, the ratio between the master clock and the sample clock is about 80 (12, 14 or 16 data bits and 8 control bits)
+** It applies thee "smoothing" to the pulses and the computes the state of the pulse.
+This is done by only one set of logics one channel after the other.
+This implementation hase been done to fit many RAMs. The timing is safe but needs 4 clock cycles for a read or a write.
+The pulse state and the pulse data are read and written separately (with a different low address bit). Many FPGA has a small number of fixed configuration RAMs. Then each channel requires about 18 master clock cycles (8 R, 8 W, 2P).
+For the ASIC implementation, there are configurable RAM generators which can provide less Addresses and more data bits. A new controller has to be written.
+** It increments the channel counter inside the supper frame.
+It should not be the master clock worst case. The super, ultra etc... frames are low cycle consumers. However, it should be check, especially with low DAC configurations.
 
 * The super frame handles a number of frames equal to the number of channels.
 ** During each frame, the product of the requested values by the global volume is computed.
+The multiplication is done by successive additions. The global volume has a low number of bits.
 
 * The ultra frames are for the ADC
 TODO: decide if the project stops here with a fast RS232 as the trigger or (as the other fun project of the analogue pulse) continue with an audio compatible input.

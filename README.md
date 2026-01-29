@@ -12,7 +12,7 @@ It should build on every (not too old) FPGA.
 
 The macro blocs logic is the same than the pulses_gene project, plus additional features and with a reduce analogue "smoothing".
 The analogue part is reduced to some inexpensive passive components, Serial ADC and serial DAC.
-The project issues the interface lines (CLK, transfer etc...) for the DAC. At the full bundle level, each control is duplicated into unconstrained vectors. The top level fixes the number of PINS according with the PCB. It is also a good idea, for multiple DAC to supply all the signals of each one by the same FPGA power supply bank.
+The project issues the interface lines (CLK, transfer etc...) for the DAC. At the full bundle level, each control is duplicated into unconstrained vectors. The top level sets the number of PINS according with the PCB. It is also a good idea, for multiple DAC to supply all the signals of each one by the same FPGA power supply bank.
 
 The pulses are "smoothed" in the same way than the MultiSignalGene project.
 
