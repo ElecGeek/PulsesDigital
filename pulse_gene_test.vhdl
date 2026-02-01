@@ -76,7 +76,7 @@ begin
     port map(
       RST              => RST,
       --! Enable: high only once to compute the new state
-      start            => '1',
+      start_pulse      => '1',
       polar_first      => '0',
       priv_state_in    => std_logic_vector(state_id(state_id'low + 3 downto state_id'low)),
       priv_counter_in  => priv_counter_in,
@@ -149,7 +149,7 @@ begin
     port map(
       CLK           => CLK,
       RST           => RST(RST'low),
-      start         => start,
+      start_frame   => start,
       ready         => ready,
       RAM_addr_high => RAM_addr_high,
       RAM_addr_low  => RAM_addr_low,

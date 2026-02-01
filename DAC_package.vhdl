@@ -32,17 +32,21 @@ use ieee.std_logic_1164.all,
 package DAC_package is
   --! This work around is going to be used until I install a version of GHDL
   --! that fixes the 3102 issue.
-  constant mode_totempole             : boolean  := true;
-  constant channels_number            : positive := 1;
-  constant data_size                  : positive := 4;
-  constant DAC_data_size              : positive := 8;
-  constant nbre_DACS_used             : positive := 1;
-  constant MasterCLK_SampleCLK_ratio  : positive := 40;
-  constant MasterCLK_DACCLK_ratio     : positive := 2;
-  constant Negation_fast_not_accurate : boolean  := true;
+  constant mode_totempole             : boolean                := true;
+  constant output_offset              : natural                := 0;
+  constant channels_number            : integer range 2 to 300 := 4;
+  constant data_size                  : positive               := 8;
+  constant DAC_data_size              : positive               := 8;
+  constant nbre_DACS_used             : positive               := 2;
+  constant MasterCLK_SampleCLK_ratio  : positive               := 40;
+  constant MasterCLK_DACCLK_ratio     : positive               := 2;
+  constant Negation_fast_not_accurate : boolean                := true;
 --  generic (
   --! Mode one per output or totem-pole ( 2 per output )
 --    mode_totempole             : boolean := false;
+  --! Output offset for the analogue part polarisation.
+  --! It can work only if the totempole mode is used.
+--    output_offset              : natural := 11;
   --! Number of channels of the design using this DAC package.
 --    channels_number            : integer range 2 to 300 := 4;
   --! Size of the data, except the sign, passed to the DAC
@@ -80,7 +84,7 @@ package DAC_package is
   --! Number of outputs per DAC.
   --! In case of a totem-pole, the real DAC should have twice this number.
   constant nbre_outputs_per_DAC : natural := channels_number / nbre_DACs_used;
-  
+
 --! This is the default in order to perform tests faster
   --! The goal is to get all the outputs in parallel.
   component DAC_bundle_dummy is
@@ -95,7 +99,7 @@ package DAC_package is
       --! However, some DAC needs initialization "strings".
       RST_init          : in  std_logic;
       --! Start signal
-      start             : in  std_logic;
+      start_frame       : in  std_logic;
       --! The frame is over
       ready             : out std_logic;
       --! Not used
@@ -125,9 +129,6 @@ package DAC_package is
   --! The master clock on the sample rate ratio is "normal" for a dual DAC,
   --!   and is higher only for a quad, a 6th etc...
   component DAC_bundle_real_outputs is
-    generic(
-      output_offset     : natural := 11
-      );
     port(
       CLK               : in  std_logic;
       polar_pos_not_neg : in  std_logic;
@@ -139,7 +140,7 @@ package DAC_package is
       --! However, some DAC needs initialization "strings".
       RST_init          : in  std_logic;
       --! Start signal
-      start             : in  std_logic;
+      start_frame       : in  std_logic;
       --! The cycle is over
       ready             : out std_logic;
       --!
@@ -187,8 +188,7 @@ package DAC_package is
       --! Used for multiple output DACs, to generate the index for some debug notes
       register_position : natural;
       --! Used for multiple DACs, to generate its index for some debug notes      
-      DAC_chain_number  : natural;
-      output_offset     : natural);
+      DAC_chain_number  : natural);
     port (
       CLK                : in  std_logic;
       --! The data values are always sent to the DAC component as
@@ -235,7 +235,7 @@ package DAC_package is
     port (
       CLK               : in  std_logic;
       RST_init          : in  std_logic;
-      start             : in  std_logic;
+      start_frame       : in  std_logic;
       -- The frame is over
       ready             : out std_logic;
       --! See in the type definition
@@ -246,7 +246,31 @@ package DAC_package is
       );
   end component Controler_default;
 --end package DAC_package_t;
+
+  function TotempoleOutputUsage (
+    constant is_totempole : boolean)
+    return positive;
+
 end package DAC_package;
+
+package body DAC_package is
+
+  function TotempoleOutputUsage (
+    constant is_totempole : boolean)
+    return positive is
+  begin
+    if is_totempole then
+      return 2;
+    else
+      return 1;
+    end if;
+  end function TotempoleOutputUsage;
+
+end package body DAC_package;
+
+
+
+
 -- This should move into a configuration file
 
 -- library ieee;

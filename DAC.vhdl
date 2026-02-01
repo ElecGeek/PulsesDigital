@@ -48,7 +48,7 @@ entity DAC_bundle_dummy is
     data_in           : in  std_logic_vector(requested_amplitude_size + global_volume_size - 1 downto 0);
     EN                : in  std_logic_vector(channels_number - 1 downto 0);
     RST_init          : in  std_logic;
-    start             : in  std_logic;
+    start_frame       : in  std_logic;
     --! The frame is over
     ready             : out std_logic;
     data_serial       : out std_logic_vector;
@@ -80,7 +80,7 @@ begin
     update_serial(ind) <= 'W';
   end generate;
 
-  ready <= not start;
+  ready <= not start_frame;
   channel_generate : for ind in 0 to channels_number - 1 generate
     DAC_dummy_channel_instanc : DAC_dummy_channel port map(
       CLK,
@@ -105,9 +105,6 @@ use ieee.std_logic_1164.all,
 --! The internal signals latch the input
 --!   in order to check the values.
 entity DAC_bundle_real_outputs is
-  generic(
-    output_offset : natural
-    );
   port(
     CLK               : in  std_logic;
     polar_pos_not_neg : in  std_logic;
@@ -118,7 +115,7 @@ entity DAC_bundle_real_outputs is
     --! To be passed to the sequencer for the DAC initialization
     RST_init          : in  std_logic;
     --! To be passed to the sequencer for the start
-    start             : in  std_logic;
+    start_frame       : in  std_logic;
     --! The frame is over
     ready             : out std_logic;
     --! One bit per DAC circuit
@@ -155,7 +152,7 @@ begin
     "with " & integer'image(nbre_outputs_per_DAC) & " channels each" severity note;
   assert mode_totempole report "Each output is a positive and negative " &
     "with an offset of (<vector>'high=>'1', others=>'0')" severity note;
-  assert not mode_totempole report "Elaborating totem-pole" & integer'image(nbre_DACs_used) & "Dac(s), " &
+  assert not mode_totempole report "Elaborating totem-pole " & integer'image(nbre_DACs_used) & " Dac(s), " &
     "with " & integer'image(2*nbre_outputs_per_DAC) & " channels each" severity note;
   assert not mode_totempole report "Each output is sent to the odd or the even " &
     "output address, according with the polarity" severity note;
@@ -168,8 +165,7 @@ begin
         Buffer_and_working_registers_first : Buffer_and_working_registers
           generic map (
             register_position => 0,
-            DAC_chain_number  => ind_DAC,
-            output_offset     => output_offset)
+            DAC_chain_number  => ind_DAC)
           port map (
             CLK                => CLK,
             polar_pos_not_neg  => polar_pos_not_neg,
@@ -187,8 +183,7 @@ begin
         Buffer_and_working_registers_others : Buffer_and_working_registers
           generic map (
             register_position => ind_output,
-            DAC_chain_number  => ind_DAC,
-            output_offset     => output_offset)
+            DAC_chain_number  => ind_DAC)
           port map (
             CLK                => CLK,
             polar_pos_not_neg  => polar_pos_not_neg,
@@ -228,7 +223,7 @@ begin
     port map (
       CLK,
       RST_init,
-      start,
+      start_frame,
       ready,
       registers_control,
       CLK_serial      => CLK_serial_s,
@@ -267,8 +262,7 @@ entity Buffer_and_working_registers is
     --!   in case of the polarity.
     --! Otherwise, it is the full address.
     register_position : natural;
-    DAC_chain_number  : natural;
-    output_offset     : natural);
+    DAC_chain_number  : natural);
   port (
     CLK                : in  std_logic;
     --! Polarity, void if compute_sign is false
@@ -319,7 +313,8 @@ begin  -- architecture arch
                                                      to_unsigned(output_offset, buffer_data_in'length ));
         buffer_polar_pos_not_neg <= polar_pos_not_neg;
       end if;
-      case? registers_control is
+--      case? registers_control is
+      case registers_control is
         when "000" =>
           working_register(working_register'low) <= chain_data_in;
           working_register(working_register'high downto working_register'low + 1) <=
@@ -328,14 +323,16 @@ begin  -- architecture arch
         when "001" =>
           working_polar <= chain_polarity_in;
           data_out      <= working_polar;
-        when "10-" =>
+--        when "10-" =>
+        when "100" | "101" =>
           data_out <= registers_control(0);
         when "110" =>
           data_out <= '-';
         when "111" =>
           data_out <= 'X';
 --          data_out <= '-';
-        when "01-" =>
+--        when "01-" =>
+        when "010" | "011" =>
           data_out <= registers_control(0);
 
           if mode_totempole then
@@ -385,7 +382,8 @@ begin  -- architecture arch
           end if;
 
         when others => null;
-      end case?;
+--      end case?;
+      end case;
     end if;
   end process main_proc;
 
@@ -412,9 +410,6 @@ entity Controler_default is
     initialization_cmd   : std_logic_vector := "1010";
     --! Address bits
     address_size         : positive         := 2;
-    --! Number of channels per DAC, only for validation
-    --!   as this is a part of the DAC definition, not the project definition
-    DAC_number_outputs   : positive         := 2;
     --! Device data size.
     --! It may be longer than the device data size.
     --! In such case a padding with don't care is added as
@@ -424,7 +419,7 @@ entity Controler_default is
   port (
     CLK               : in  std_logic;
     RST_init          : in  std_logic;
-    start             : in  std_logic;
+    start_frame       : in  std_logic;
     ready             : out std_logic;
     --! See in the type definition
     registers_control : out registers_control_st;
@@ -443,27 +438,17 @@ architecture arch of Controler_default is
                                                                      3);
   --! Counter to manage the command signal to send one output of the DAC
   signal main_counter : std_logic_vector(main_counter_size - 1 downto 0);
-  function TotempoleOutputUsage (
-    constant is_totempole : boolean)
-    return positive is
-  begin
-    if is_totempole then
-      return 2;
-    else
-      return 1;
-    end if;
-  end function TotempoleOutputUsage;
   --! Counter to manage the address in case there is more
   --!   than one output per DAC to handle.
   signal address_counter       : std_logic_vector(address_size - 1 downto 0);
   constant address_counter_min : std_logic_vector(address_counter'range) := (others => '0');
   constant address_counter_max : std_logic_vector(address_counter'range) :=
-    std_logic_vector(to_unsigned(DAC_number_outputs / TotempoleOutputUsage(mode_totempole) - 1,
+    std_logic_vector(to_unsigned(nbre_outputs_per_DAC * TotempoleOutputUsage(mode_totempole) - 1,
                                  address_counter'length));
   signal is_initialised : std_logic;
 begin  -- architecture arch
-  assert DAC_number_outputs <= 2**address_size report "The number of address bits (" & positive'image(address_size) &
-                               ") is not enough for " & positive'image(DAC_number_outputs) & " DAC outputs"
+  assert nbre_outputs_per_DAC <= 2**address_size report "The number of address bits (" & positive'image(address_size) &
+                               ") is not enough for " & positive'image(nbre_outputs_per_DAC) & " DAC outputs"
                                severity failure;
   assert DAC_data_size <= device_data_size report "The device data size (" & positive'image(device_data_size) &
                           ") should not be smaller than the DAC data size (" & positive'image(DAC_data_size) & ")"
@@ -479,28 +464,28 @@ begin  -- architecture arch
   assert write_and_update_cmd'ascending and write_only_cmd'ascending report
     "The commands with and without updates are defined big endian in an ascending vector" severity error;
   assert mode_totempole or
-    nbre_outputs_per_DAC >= DAC_number_outputs
+    nbre_outputs_per_DAC >= nbre_outputs_per_DAC
     report "The number of outputs (" & natural'image(nbre_outputs_per_DAC) &
-    ") is lower than " & positive'image(DAC_number_outputs) & ", some DAC outputs are lost" severity warning;
+    ") is lower than " & positive'image(nbre_outputs_per_DAC) & ", some DAC outputs are lost" severity warning;
+  -- assert mode_totempole or
+  --   nbre_outputs_per_DAC <= nbre_outputs_per_DAC
+  --   report "The number of outputs (" & natural'image(nbre_outputs_per_DAC) &
+  --   ") is lower than " & positive'image(nbre_outputs_per_DAC) & ", some project outputs are lost" severity error;
   assert mode_totempole or
-    nbre_outputs_per_DAC <= DAC_number_outputs
-    report "The number of outputs (" & natural'image(nbre_outputs_per_DAC) &
-    ") is lower than " & positive'image(DAC_number_outputs) & ", some project outputs are lost" severity error;
-  assert mode_totempole or
-    nbre_outputs_per_DAC /= DAC_number_outputs
-    report "Instantiating a set/one DAC with " & positive'image(DAC_number_outputs) & " outputs in not totem-pole mode"
+    nbre_outputs_per_DAC /= nbre_outputs_per_DAC
+    report "Instantiating a set/one DAC with " & positive'image(nbre_outputs_per_DAC) & " outputs in not totem-pole mode"
     severity note;
   assert not mode_totempole or
-    nbre_outputs_per_DAC >= (DAC_number_outputs / 2)
+    nbre_outputs_per_DAC >= (nbre_outputs_per_DAC / 2)
     report "The number of outputs (" & natural'image(nbre_outputs_per_DAC) &
-    ") is lower than " & positive'image(DAC_number_outputs/2) & ", some DAC outputs are lost" severity warning;
+    ") is lower than " & positive'image(nbre_outputs_per_DAC/2) & ", some DAC outputs are lost" severity warning;
+  -- assert not mode_totempole or
+  --   nbre_outputs_per_DAC <= (nbre_outputs_per_DAC / 2)
+  --   report "The number of outputs (" & natural'image(nbre_outputs_per_DAC) &
+  --   ") is lower than " & positive'image(nbre_outputs_per_DAC/2) & ", some project outputs are lost" severity error;
   assert not mode_totempole or
-    nbre_outputs_per_DAC <= (DAC_number_outputs / 2)
-    report "The number of outputs (" & natural'image(nbre_outputs_per_DAC) &
-    ") is lower than " & positive'image(DAC_number_outputs/2) & ", some project outputs are lost" severity error;
-  assert not mode_totempole or
-    nbre_outputs_per_DAC /= (DAC_number_outputs / 2)
-    report "Instantiating a set/one DAC with " & positive'image(DAC_number_outputs/2) & " outputs in totem-pole mode"
+    nbre_outputs_per_DAC /= (nbre_outputs_per_DAC / 2)
+    report "Instantiating a set/one DAC with " & positive'image(nbre_outputs_per_DAC/2) & " outputs in totem-pole mode"
     severity note;
 
 
@@ -540,7 +525,7 @@ begin  -- architecture arch
           -- Run the main, parallel to serial conversion of
           --   the command, the address and the data
           MAIN_IF_DISPATCH : if to_integer(unsigned(main_counter)) = 0 then
-            START_CONT_WAIT : if start = '1' then
+            START_CONT_WAIT : if start_frame = '1' then
               if write_with_or_without_update_cmd(write_with_or_without_update_cmd'high) = '-' then
                 registers_control <= "010";
               else

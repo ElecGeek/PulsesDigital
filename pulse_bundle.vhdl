@@ -4,6 +4,8 @@ use ieee.std_logic_1164.all,
   work.Utils_pac.StateNumbers_2_BitsNumbers,
   work.Amplitude_package.requested_amplitude_size,
   work.Amplitude_package.global_volume_size,
+  work.Amplitude_package.Pulse_amplitude_record,
+  work.Amplitude_package.Pulse_start_record,
   work.Dac_package.all,
   work.Pulses_pac.all;
 --! @brief Handles N pulse channels
@@ -13,17 +15,21 @@ use ieee.std_logic_1164.all,
 --! 
 entity Pulses_bundle is
   generic (
-    MasterCLK_SampleCLK_ratio : integer range 10 to 40 := 22;
-    output_offset             : natural := 7
+    MasterCLK_SampleCLK_ratio : integer range 10 to 40 := 22
     );
   port (
     --! Master clock
     CLK                : in  std_logic;
     RST                : in  std_logic;
-    start              : in  std_logic;
---! TEMPORARY
-    priv_amplitude_new : in  std_logic_vector (15 downto 0);
-    --! TODO set the inputs amplitude and the volume
+    --! coming from the amplitude
+    pulse_amplitude_data : in  pulse_amplitude_record;
+    --! coming from the amplitude
+    pulse_start_data   : in  pulse_start_record;
+    --! The amplitude is involved in the frame end as well, at least for testing
+    ready_amplitude    : in  std_logic;
+    --! The amplitude is involved in the frame end as well, at least for testing
+    start_frame        : out std_logic;
+    --! Dac interfaces
     data_serial        : out std_logic_vector;
     CLK_serial         : out std_logic_vector;
     transfer_serial    : out std_logic_vector;
@@ -64,13 +70,19 @@ architecture arch of Pulses_bundle is
   signal RAM_unioned          : std_logic_vector(priv_amplitude_in'length - 1 downto 0);
   type RAM_t is array(0 to 2 ** RAM_addr_size) of state_RAM_elem;
   signal the_RAM              : RAM_t;
+  signal new_start            : std_logic;
+  signal new_polar            : std_logic;
   signal RAM_read             : std_logic;
   signal RAM_write            : std_logic;
   signal EN_process           : std_logic;
   signal EN                   : std_logic_vector(channels_number - 1 downto 0);
   signal computed_amplitude   : std_logic_vector(requested_amplitude_size + global_volume_size - 1 downto 0);
-  signal start_frame          : std_logic;
   signal ready_DAC, ready_SEQ : std_logic;
+
+  signal f1 : std_logic;
+  signal f2 : std_logic;
+  signal f3 : std_logic_vector( Pulse_amplitude_data.which_channel'range);
+  signal f4 : std_logic_vector( Pulse_amplitude_data.the_amplitude'range);
 begin
   assert priv_amplitude_in'length >= (state_length + counter_length)
     report "in this version, the amplitude size should be at least the state size (3) plus the counter size"
@@ -88,6 +100,15 @@ begin
 
       R_W_if : if RAM_read = '1' then
         RAM_read_struct <= the_RAM(to_integer(unsigned(RAM_addr_high) & unsigned(RAM_addr_low)));
+        if RAM_addr_low = "0" then
+          f1 <= Pulse_start_data(to_integer(unsigned(RAM_addr_high))).polarity_first;          
+          f2 <= Pulse_start_data(to_integer(unsigned(RAM_addr_high))).enable;
+          f3 <= Pulse_amplitude_data.which_channel;
+          f4 <= Pulse_amplitude_data.the_amplitude;
+      
+          new_start <= Pulse_start_data(to_integer(unsigned(RAM_addr_high))).enable;
+          new_polar <= Pulse_start_data(to_integer(unsigned(RAM_addr_high))).polarity_first;
+        end if;
       elsif RAM_write = '1' then
         the_RAM(to_integer(unsigned(RAM_addr_high) & unsigned(RAM_addr_low))) <= RAM_write_struct;
       elsif EN_process = '1' then
@@ -120,12 +141,13 @@ begin
           -- The amplitude is re written as it if
           --   a pulse cycle is currently running
           -- The amplitude is the one supplied, which is ready to be "photographed"
-          if priv_state_S_2_A = "0000" then
+          if priv_state_S_2_A = "0000" and
+            Pulse_amplitude_data.which_channel = RAM_addr_high then
             -- Wait state or reset, we can accept new amplitude
-            RAM_write_struct.padding <= priv_amplitude_new(15 downto 13);
-            RAM_write_struct.state   <= priv_amplitude_new(12 downto 9);
-            RAM_write_struct.polar   <= priv_amplitude_new(8);
-            RAM_write_struct.counter <= priv_amplitude_new(7 downto 0);
+            RAM_write_struct.padding <= pulse_amplitude_data.the_amplitude(15 downto 13);
+            RAM_write_struct.state   <= pulse_amplitude_data.the_amplitude(12 downto 9);
+            RAM_write_struct.polar   <= pulse_amplitude_data.the_amplitude(8);
+            RAM_write_struct.counter <= pulse_amplitude_data.the_amplitude(7 downto 0);
           else
             -- Running, keep the old amplitude
             RAM_write_struct <= RAM_read_struct;
@@ -143,7 +165,7 @@ begin
     port map(
       CLK,
       RST,
-      start         => start_frame,
+      start_frame   => start_frame,
       ready         => ready_SEQ,
       RAM_addr_high => RAM_addr_high,
       RAM_addr_low  => RAM_addr_low,
@@ -181,8 +203,8 @@ begin
       --! Master clock
       RST              => RST,
       --! Enable: high only once to compute the new state
-      start            => start,
-      polar_first      => '0',
+      start_pulse      => new_start,
+      polar_first      => new_polar,
       priv_state_in    => RAM_read_struct.state,
       priv_polar_in    => RAM_read_struct.polar,
       priv_counter_in  => RAM_read_struct.counter,
@@ -199,7 +221,7 @@ begin
       data_in           => computed_amplitude,
       EN                => EN,
       RST_init          => or(RST_delayed),
-      start             => start_frame,
+      start_frame       => start_frame,
       ready             => ready_DAC,
       data_serial       => data_serial,
       CLK_serial        => CLK_serial,
@@ -214,9 +236,7 @@ end architecture arch;
 configuration DAC_default_controler of Pulses_bundle is
   for arch
     for DAC_bundle_instanc : DAC_bundle_dummy
-      use entity work.DAC_bundle_real_outputs
-        generic map (
-          output_offset => output_offset);
+      use entity work.DAC_bundle_real_outputs;
     end for;
 
   end for;

@@ -20,7 +20,7 @@ package DAC_emulators_package is
       write_and_update_cmd : std_logic_vector;
       write_only_cmd       : std_logic_vector;
       address_size         : positive              := 10;
-      DAC_numbers          : positive              := 10;
+      nbre_outputs_per_DAC          : positive              := 10;
       --! This generic has 2 purposes:
       --! * set the size of the data registers.
       --! * consider as canceled if the transfer_serial return early to high
@@ -45,7 +45,7 @@ entity DAC_emulator_model_1 is
     write_and_update_cmd : std_logic_vector;
     write_only_cmd       : std_logic_vector;
     address_size         : positive              := 2;
-    DAC_numbers          : positive              := 4;
+    nbre_outputs_per_DAC          : positive              := 4;
     --! This generic has 2 purposes:
     --! * set the size of the data registers.
     --! * consider as canceled if the transfer_serial return early to high
@@ -68,7 +68,7 @@ architecture arch of DAC_emulator_model_1 is
   signal command_register : std_logic_vector(write_and_update_cmd'length - 1 downto 0);
   signal address_register : std_logic_vector(address_size -1 downto 0);
   signal working_register : std_logic_vector(data_bits - 1 downto 0);
-  type shifted_data_t is array (DAC_numbers - 1 downto 0) of unsigned(working_register'range);
+  type shifted_data_t is array (nbre_outputs_per_DAC - 1 downto 0) of unsigned(working_register'range);
   signal written_data     : shifted_data_t;
   signal uploaded_data    : shifted_data_t;
   -- For the whoose does not have the GHW format
@@ -77,9 +77,9 @@ architecture arch of DAC_emulator_model_1 is
   signal uploaded_data_2  : unsigned(working_register'range);
   signal uploaded_data_3  : unsigned(working_register'range);
 begin
-  assert 2 ** address_size >= DAC_numbers report
+  assert 2 ** address_size >= nbre_outputs_per_DAC report
     "The address size (2**" & integer'image(address_size) & ") is not enough for " &
-    integer'image(DAC_numbers) & "DACs"
+    integer'image(nbre_outputs_per_DAC) & "DACs"
     severity failure;
   assert write_and_update_cmd'length = write_only_cmd'length report
     "The size of the command write and upodate (" & integer'image(write_and_update_cmd'length) &

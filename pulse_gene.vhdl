@@ -22,7 +22,7 @@ entity Pulses_stateMachine is
   port (
     RST              : in  std_logic;
     --! Enable: high only once to compute the new state
-    start            : in  std_logic;
+    start_pulse      : in  std_logic;
     polar_first      : in  std_logic;
     priv_state_in    : in  std_logic_vector(3 downto 0);
     priv_polar_in    : in  std_logic;
@@ -54,7 +54,7 @@ begin
   -- 1110 : 1/2 negative
   -- 1111 : 1/4 negative
 
-  state_proc : process(RST, start, polar_first, priv_state_in, priv_polar_in, priv_counter_in) is
+  state_proc : process(RST, start_pulse, polar_first, priv_state_in, priv_polar_in, priv_counter_in) is
   begin
     STATE_CASE : case priv_state_in(1 downto 0) is
       when "00" =>
@@ -72,7 +72,7 @@ begin
             else
               priv_polar_out <= priv_polar_in;
             end if;
-          elsif start = '1' then
+          elsif start_pulse = '1' then
             -- Ready and the start is requested
             state_out(1 downto 0) <= "01";
             priv_polar_out        <= polar_first;
@@ -224,7 +224,7 @@ entity Pulses_sequencer is
     CLK           : in  std_logic;
     RST           : in  std_logic;
 --!
-    start         : in  std_logic;
+    start_frame   : in  std_logic;
 --! The frame is over
     ready         : out std_logic;
 --! Which channel    
@@ -284,7 +284,7 @@ begin
             if RAM_addr_high /= std_logic_vector(to_unsigned(channels_number - 1, RAM_addr_high'length)) then
               RAM_addr_high   <= std_logic_vector(unsigned(RAM_addr_high) + 1);
               sequencer_state <= "0001";
-            elsif start = '1' then
+            elsif start_frame = '1' then
               ready           <= '0';
               RAM_addr_high   <= (others => '0');
               sequencer_state <= "0001";

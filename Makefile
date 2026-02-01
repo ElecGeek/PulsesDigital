@@ -22,8 +22,9 @@ ICEPACK?=icepack
 DAC_simul : $(SCRDIR)DAC.vhdl $(SCRDIR)DAC_test.vhdl $(SCRDIR)DAC_package.vhdl $(SCRDIR)DAC_configure.vhdl $(SRCDIR)DAC_emulators.vhdl
 	rm -f work-obj08.cf
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl
-	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)test_utils.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC.vhdl
 #	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_configure.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_emulators.vhdl
@@ -36,8 +37,8 @@ DAC_simul : $(SCRDIR)DAC.vhdl $(SCRDIR)DAC_test.vhdl $(SCRDIR)DAC_package.vhdl $
 # Test 1B, verify the pulses are correctly generated from the computed amplitude inside one frame
 pulse_parts_simul : $(SCRDIR)pulse_gene.vhdl $(SCRDIR)pulse_gene_test.vhdl $(SCRDIR)utils_package.vhdl $(SCRDIR)pulse_gene_package.vhdl 
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl
-	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_gene_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_gene.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_gene_test.vhdl
@@ -49,8 +50,8 @@ pulse_parts_simul : $(SCRDIR)pulse_gene.vhdl $(SCRDIR)pulse_gene_test.vhdl $(SCR
 # Test 2
 pulse_bundle_simul : $(SCRDIR)pulse_gene.vhdl $(SCRDIR)pulse_gene_test.vhdl  $(SCRDIR)utils_package.vhdl $(SCRDIR)pulse_gene_package.vhdl $(SRCDIR)DAC_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl
-	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_gene_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_gene.vhdl
@@ -62,6 +63,7 @@ pulse_bundle_simul : $(SCRDIR)pulse_gene.vhdl $(SCRDIR)pulse_gene_test.vhdl  $(S
 
 amplitude_parts_simul : $(SCRDIR)amplitude.vhdl $(SCRDIR)amplitude_test.vhdl $(SCRDIR)utils_package.vhdl $(SCRDIR)amplitude_package.vhdl 
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_test.vhdl
@@ -72,6 +74,7 @@ amplitude_parts_simul : $(SCRDIR)amplitude.vhdl $(SCRDIR)amplitude_test.vhdl $(S
 
 amplitude_bundle_simul : $(SCRDIR)amplitude.vhdl $(SCRDIR)amplitude_test.vhdl $(SCRDIR)utils_package.vhdl $(SCRDIR)amplitude_package.vhdl 
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_test.vhdl
@@ -82,6 +85,7 @@ amplitude_bundle_simul : $(SCRDIR)amplitude.vhdl $(SCRDIR)amplitude_test.vhdl $(
 
 amplitude_parts_cxx : $(SCRDIR)amplitude.vhdl $(SCRDIR)amplitude_test.vhdl $(SCRDIR)utils_package.vhdl $(SCRDIR)amplitude_package.vhdl 
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude.vhdl
 	mkdir -p $(CXXDESTDIR)
@@ -92,14 +96,22 @@ amplitude_parts_cxx : $(SCRDIR)amplitude.vhdl $(SCRDIR)amplitude_test.vhdl $(SCR
 #	$(NEXTPNR-ICE40_PROG) --hx4k --package tq144 --freq 30.00 --top Amplitude_multiplier_CXX_wrap --asc $(SYNTHDESTDIR)amplitude_lowlevel.asc --json $(SYNTHDESTDIR)amplitude_lowlevel.ice40.json --placed-svg $(SYNTHDESTDIR)amplitude_lowlevel.placed.svg
 
 
-pulse_gene_low_level_synth : $(SCRDIR)pulse_gene.vhdl $(SCRDIR)pulse_gene_test.vhdl  $(SCRDIR)utils_package.vhdl $(SCRDIR)pulse_gene_package.vhdl
+project_synth : $(SCRDIR)pulse_gene.vhdl $(SCRDIR)pulse_gene_test.vhdl  $(SCRDIR)utils_package.vhdl $(SCRDIR)pulse_gene_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_gene_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_gene.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_bundle.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)project_bundle.vhdl
+	$(GHDL_PROG) -e $(VFLAGS) PCB_bundle
+	$(GHDL_PROG) --synth $(VFLAGS) --out=none PCB_bundle
+
 	mkdir -p $(SYNTHDESTDIR)
-	$(YOSYS_PROG) -m ghdl -p '$(GHDL_PROG) $(VFLAGS) Pulses_bundle; synth_ice40 -json $(SYNTHDESTDIR)pulse_gene_lowlevel.ice40.json' 2>&1 |tee $(SYNTHDESTDIR)pulse_gene_lowlevel.synth.out.txt
-	$(NEXTPNR-ICE40_PROG) --hx4k --package tq144 --freq 30.00 --top Pulses_bundle --asc $(SYNTHDESTDIR)pulse_gene_lowlevel.asc --json $(SYNTHDESTDIR)pulse_gene_lowlevel.ice40.json --placed-svg $(SYNTHDESTDIR)pulse_gene_lowlevel.placed.svg --routed-svg $(SYNTHDESTDIR)pulse_gene_lowlevel.routed.svg --report $(SYNTHDESTDIR)pulse_gene_lowlevelc.report.json 2>&1 |tee $(SYNTHDESTDIR)pulse_gene_lowlevel.P_and_R.out.txt
-	$(ICEPACK) $(SYNTHDESTDIR)pulse_gene_lowlevel.asc $(SYNTHDESTDIR)pulse_gene_lowlevel.bin 2>&1 |tee $(SYNTHDESTDIR)pulse_gene_lowlevel.pack.out.txt
+	$(YOSYS_PROG) -m ghdl -p '$(GHDL_PROG) $(VFLAGS) PCB_bundle; synth_ice40 -json $(SYNTHDESTDIR)project_lowlevel.ice40.json' 2>&1 |tee $(SYNTHDESTDIR)project_lowlevel.synth.out.txt
+	$(NEXTPNR-ICE40_PROG) --hx4k --package tq144 --freq 30.00 --top Project_bundle --asc $(SYNTHDESTDIR)project_lowlevel.asc --json $(SYNTHDESTDIR)project_lowlevel.ice40.json --placed-svg $(SYNTHDESTDIR)project_lowlevel.placed.svg --routed-svg $(SYNTHDESTDIR)project_lowlevel.routed.svg --report $(SYNTHDESTDIR)project_lowlevel.report.json 2>&1 |tee $(SYNTHDESTDIR)project_lowlevel.P_and_R.out.txt
+	$(ICEPACK) $(SYNTHDESTDIR)project_lowlevel.asc $(SYNTHDESTDIR)project_lowlevel.bin 2>&1 |tee $(SYNTHDESTDIR)project_lowlevel.pack.out.txt
 
 amplitude_low_level_synth : $(SCRDIR)amplitude.vhdl $(SCRDIR)amplitude_test.vhdl $(SCRDIR)utils_package.vhdl $(SCRDIR)amplitude_package.vhdl 
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl

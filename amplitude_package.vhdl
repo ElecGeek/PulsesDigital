@@ -1,6 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all,
-  work.Utils_pac.StateNumbers_2_BitsNumbers;
+  work.Utils_pac.StateNumbers_2_BitsNumbers,
+  work.DAC_package.channels_number;
 
 --! @brief 1 channel at a time amplitude computation
 --!
@@ -30,6 +31,32 @@ package Amplitude_package is
   --!     requested_amplitude_size    : integer range 2 to 100 := 4;
   --!     constant global_volume_size : integer range 2 to 100 := 4
   --! );
+
+  --! These two signals always go together as
+  --!   only one amplitude is computed per frame.
+  --! (The amplitude should be linked to the channel and
+  --!   all channels are compuited in each super frame).
+  type Pulse_amplitude_record is record
+  --
+    --! TO BE clarified: why channel_numbers + 1
+    -- TEMPORARY, the channels number should have a constraint to be at least 2
+    -- but for the design investigation, it is faster to run with only 1.
+    --! 
+    which_channel  : std_logic_vector(StateNumbers_2_BitsNumbers(channels_number+1) - 1 downto 0);
+    --! TEMPORARY until the size is dynamic everywhere in the project
+    the_amplitude  : std_logic_vector( 15 downto 0 );
+  end record Pulse_amplitude_record;
+  
+  --! These two signal always go together as
+  --!   a pulse is always triggered with its polarity.
+  --! @anchor Pulse_start_record_anchor
+  type Pulse_start_element is record
+    enable         : std_logic;
+    polarity_first : std_logic;
+  end record Pulse_start_element;
+
+  --! All the channels are subject to be trigered at the same time
+  type Pulse_start_record is array( channels_number - 1 downto 0 ) of Pulse_start_element;
   
   component Amplitude_multiplier is
     generic (
@@ -53,5 +80,17 @@ package Amplitude_package is
       theOut  : out std_logic_vector);
 
   end component Amplitude_multiplier;
+
+  component Amplitude_sequencer is
+    port (
+      CLK :  in std_logic );
+  end component Amplitude_sequencer;
+
+  component amplitude_bundle is
+    port (
+      CLK              : in  std_logic;
+      pulse_start_data : out Pulse_start_record);
+  end component amplitude_bundle;
+    
   
 end package Amplitude_package;

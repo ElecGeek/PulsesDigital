@@ -1,7 +1,9 @@
 library ieee;
 use ieee.std_logic_1164.all,
   work.Utils_pac.StateNumbers_2_BitsNumbers,
-  work.DAC_package.channels_number;
+  work.DAC_package.channels_number,
+  work.Amplitude_package.pulse_amplitude_record,
+  work.Amplitude_package.pulse_start_record;
 
 --! @brief N channels pulses generator
 --!
@@ -43,7 +45,7 @@ package Pulses_pac is
     port (
       RST              : in  std_logic;
       --! Enable: high only once to compute the new state
-      start            : in  std_logic;
+      start_pulse      : in  std_logic;
       --! First pulse is negative not positive
       polar_first      : in  std_logic;
       --! From the output of the previous sample without any modification.
@@ -71,13 +73,13 @@ package Pulses_pac is
   component Pulses_stateMOut is
     port (
       --! Master clock
-      CLK               : in  std_logic;
-      RST               : in  std_logic;
+      CLK           : in  std_logic;
+      RST           : in  std_logic;
       --! Enable: high only once to compute the new state
-      req_amplitude     : in  std_logic_vector;
-      state             : in  std_logic_vector(3 downto 0);
+      req_amplitude : in  std_logic_vector;
+      state         : in  std_logic_vector(3 downto 0);
       --! Tells which polarity has to be update
-      out_amplitude     : out std_logic_vector
+      out_amplitude : out std_logic_vector
       );
   end component Pulses_stateMOut;
 
@@ -114,14 +116,14 @@ package Pulses_pac is
       MasterCLK_SampleCLK_ratio : integer range 10 to 40;
       --! Does one more RAM operation.
       --! This is set by the bundle, and should be modified
-      has_extra_RAM_op          : boolean                := false
+      has_extra_RAM_op          : boolean := false
       );
     port (
       --! Master clock
       CLK           : in  std_logic;
       RST           : in  std_logic;
       --!
-      start         : in  std_logic;
+      start_frame   : in  std_logic;
       --! The frame is over
       ready         : out std_logic;
       --! Addr to be concatenated with the low. Should only be passed to the RAM.
@@ -137,27 +139,37 @@ package Pulses_pac is
       EN            : out std_logic_vector(channels_number - 1 downto 0));
   end component Pulses_sequencer;
 
---! @brief Handles N pulse channels
---!
---! It bundles all the components of the package.
---! It provides the RAM needed to store the states and the other data.\n
---! TODO document the commands
+  --! @brief Handles N pulse channels
+  --!
+  --! It bundles all the components of the package.
+  --! It provides the DAC control components and
+  --!   the RAM needed to store the states and the other data.\n
+  --! It runs standalone. It starts a new pulse when the amplitude set of modules
+  --!   requests.\n
+  --! This data is passed via a bundle structure, see @ref Pulse_start_record_anchor
+  --! This record should be stable from the beginning of the frame
+  --!   to the last channel process.
   component Pulses_bundle is
     generic (
       MasterCLK_SampleCLK_ratio : integer range 10 to 40 := 24
       );
     port (
       --! Master clock
-      CLK                : in  std_logic;
-      RST                : in  std_logic;
-      start              : in  std_logic;
---! TEMPORARY
-      priv_amplitude_new : in  std_logic_vector (15 downto 0);
-      --! TODO set the inputs amplitude and the volume
-    data_serial        : out std_logic_vector;
-    CLK_serial         : out std_logic_vector;
-    transfer_serial    : out std_logic_vector;
-    update_serial      : out std_logic_vector
+      CLK                  : in  std_logic;
+      RST                  : in  std_logic;
+      --! coming from the amplitude
+      pulse_amplitude_data : in  pulse_amplitude_record;
+      --! coming from the amplitude
+      pulse_start_data     : in  pulse_start_record;
+      --! The amplitude is involved in the frame end as well, at least for testing
+      ready_amplitude      : in  std_logic;
+      --! The amplitude is involved in the frame end as well, at least for testing
+      start_frame          : out std_logic;
+      --! Dac interfaces
+      data_serial          : out std_logic_vector;
+      CLK_serial           : out std_logic_vector;
+      transfer_serial      : out std_logic_vector;
+      update_serial        : out std_logic_vector
       );
   end component Pulses_bundle;
 
