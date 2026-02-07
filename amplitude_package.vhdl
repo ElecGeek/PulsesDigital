@@ -42,7 +42,7 @@ package Amplitude_package is
     -- TEMPORARY, the channels number should have a constraint to be at least 2
     -- but for the design investigation, it is faster to run with only 1.
     --! 
-    which_channel  : std_logic_vector(StateNumbers_2_BitsNumbers(channels_number+1) - 1 downto 0);
+    which_channel  : std_logic_vector(StateNumbers_2_BitsNumbers(channels_number) - 1 downto 0);
     --! TEMPORARY until the size is dynamic everywhere in the project
     the_amplitude  : std_logic_vector( 15 downto 0 );
   end record Pulse_amplitude_record;

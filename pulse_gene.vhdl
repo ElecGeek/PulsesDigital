@@ -62,6 +62,7 @@ begin
           -- Go to the next state to set all the DAC to 0
           state_out        <= "0001";
           priv_counter_out <= counter_reset;
+          priv_polar_out <= '0';
         elsif priv_counter_in = std_logic_vector(to_unsigned(0, priv_counter_in'length)) then
           -- The counter is 0
           if priv_state_in(3 downto 2) /= "00" then
@@ -111,7 +112,7 @@ begin
           state_out(3 downto 2) <= "00";
           priv_counter_out      <= std_logic_vector(to_unsigned(dead_time - 1, priv_counter_out'length));
         end if;
-          priv_polar_out   <= priv_polar_in;
+        priv_polar_out   <= priv_polar_in;
     end case STATE_CASE;
   end process state_proc;
 end architecture arch;
@@ -228,7 +229,7 @@ entity Pulses_sequencer is
 --! The frame is over
     ready         : out std_logic;
 --! Which channel    
-    RAM_addr_high : out std_logic_vector(StateNumbers_2_BitsNumbers(channels_number + 1) - 1 downto 0);
+    RAM_addr_high : out std_logic_vector(StateNumbers_2_BitsNumbers(channels_number) - 1 downto 0);
 --! Which data
     RAM_addr_low  : out std_logic_vector(0 downto 0);
     RAM_read      : out std_logic;
@@ -246,7 +247,7 @@ architecture arch of Pulses_sequencer is
 --  signal RAM_global_addr       : std_logic_vector(RAM_addr'length + extra_RAM_addr_bits - 1 downto 0);
   signal sequencer_state       : std_logic_vector(3 downto 0);
   -- Round to the power 2 above
-  signal EN_shift              : std_logic_vector(2**StateNumbers_2_BitsNumbers(channels_number + 1) - 1 downto 0);
+  signal EN_shift              : std_logic_vector(2**StateNumbers_2_BitsNumbers(channels_number) - 1 downto 0);
 begin
   EN <= EN_shift(EN_shift'low - 1 + EN'length downto EN_shift'low);
 

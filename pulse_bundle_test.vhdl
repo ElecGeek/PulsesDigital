@@ -19,15 +19,15 @@ entity Pulses_bundle_test is
 end entity Pulses_bundle_test;
 
 architecture arch of Pulses_bundle_test is
-  signal pulses_counter       : unsigned(6 downto 0)            := (others        => '0');
-  signal pulses_counter_max   : unsigned(pulses_counter'range)  := ("101", others => '0');
-  signal samples_counter      : unsigned(6 downto 0)            := (others        => '0');
-  signal samples_counter_max  : unsigned(samples_counter'range) := (others        => '1');
-  signal channel_counter      : unsigned( 1 downto 0 ) := "00";
-  signal RST                  : std_logic                       := '1';
-  signal RST_count            : unsigned(7 downto 0)            := (others        => '0');
-  constant RST_max            : unsigned(RST_count'range)       := (others        => '1');
-  signal CLK                  : std_logic                       := '0';
+  signal pulses_counter       : unsigned(6 downto 0)                       := (others        => '0');
+  signal pulses_counter_max   : unsigned(pulses_counter'range)             := ("101", others => '0');
+  signal samples_counter      : unsigned(6 downto 0)                       := (others        => '0');
+  signal samples_counter_max  : unsigned(samples_counter'range)            := (others        => '1');
+  signal channel_counter      : unsigned(channels_number + 1 - 1 downto 0) := (others        => '0');
+  signal RST                  : std_logic                                  := '1';
+  signal RST_count            : unsigned(7 downto 0)                       := (others        => '0');
+  constant RST_max            : unsigned(RST_count'range)                  := (others        => '1');
+  signal CLK                  : std_logic                                  := '0';
   signal data_serial          : std_logic_vector(nbre_DACS_used - 1 downto 0);
   signal CLK_serial           : std_logic_vector(2 downto 0);
   signal transfer_serial      : std_logic_vector(1 downto 0);
@@ -48,26 +48,30 @@ begin
           RST <= '0';
         end if;
         DAC_IF : if start_frame = '1' then
-          Pulse_start_data( 0 ).polarity_first <= '0';
---          Pulse_start_data( 1 ).polarity_first <= '0';
           samples_if : if samples_counter /= samples_counter_max then
-            samples_counter         <= samples_counter + 1;
-            Pulse_start_data( 0 ).enable <= '0';
---            Pulse_start_data( 1 ).enable <= '0';
+            samples_counter <= samples_counter + 1;
+            for ind in channels_number - 1 downto 0 loop
+              Pulse_start_data(ind + Pulse_start_data'low).enable         <= '0';
+              Pulse_start_data(ind + Pulse_start_data'low).polarity_first <= '0';
+            end loop;  -- ind
           else
-            samples_counter         <= (others => '0');
-            pulses_counter          <= pulses_counter + 1;
-            Pulse_start_data( 0 ).enable <= channel_counter( channel_counter'low );
---            Pulse_start_data( 1 ).enable <= channel_counter( channel_counter'low + 1 );
-            Pulse_amplitude_data.which_channel(Pulse_amplitude_data.which_channel'low) <=
-              pulses_counter(pulses_counter'low);
-            Pulse_start_data( 0 ).polarity_first <= '0';
---            Pulse_start_data( 1 ).polarity_first <= '0';
-            amplitude_v(15 downto 10)       := pulses_counter(5 downto 0);
-            amplitude_v(9 downto 4)         := pulses_counter(5 downto 0);
-            amplitude_v(3 downto 0)         := pulses_counter(5 downto 2);
-            Pulse_amplitude_data.the_amplitude  <= std_logic_vector(amplitude_v);
-            channel_counter <= channel_counter + 1;
+            samples_counter <= (others => '0');
+            pulses_counter  <= pulses_counter + 1;
+            for ind in channels_number - 1 downto 0 loop
+              Pulse_start_data(ind + Pulse_start_data'low).enable <=
+                channel_counter(ind + channel_counter'low);
+              Pulse_start_data(ind + Pulse_start_data'low).polarity_first <=
+                channel_counter(channels_number + channel_counter'low);
+            end loop;  -- ind
+
+            Pulse_amplitude_data.which_channel(Pulse_amplitude_data.which_channel'range) <=
+              std_logic_vector( pulses_counter(Pulse_amplitude_data.which_channel'length - 1 + pulses_counter'low downto
+                             pulses_counter'low));
+            amplitude_v(15 downto 10)          := pulses_counter(5 downto 0);
+            amplitude_v(9 downto 4)            := pulses_counter(5 downto 0);
+            amplitude_v(3 downto 0)            := pulses_counter(5 downto 2);
+            Pulse_amplitude_data.the_amplitude <= std_logic_vector(amplitude_v);
+            channel_counter                    <= channel_counter + 1;
           end if samples_if;
         end if DAC_IF;
       end if CLK_IF;
@@ -83,17 +87,17 @@ begin
       )
     port map(
       --! Master clock
-      CLK              => CLK,
-      RST              => RST,
-      pulse_start_data => pulse_start_data,
+      CLK                  => CLK,
+      RST                  => RST,
+      pulse_start_data     => pulse_start_data,
       pulse_amplitude_data => pulse_amplitude_data,
       -- It is a test stand alone, there are no links to the amplitude module
-      ready_amplitude  => '1',
-      start_frame      => start_frame,
-      data_serial      => data_serial,
-      CLK_serial       => CLK_serial,
-      transfer_serial  => transfer_serial,
-      update_serial    => update_serial
+      ready_amplitude      => '1',
+      start_frame          => start_frame,
+      data_serial          => data_serial,
+      CLK_serial           => CLK_serial,
+      transfer_serial      => transfer_serial,
+      update_serial        => update_serial
       );
 
 

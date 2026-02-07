@@ -127,7 +127,7 @@ package Pulses_pac is
       --! The frame is over
       ready         : out std_logic;
       --! Addr to be concatenated with the low. Should only be passed to the RAM.
-      RAM_addr_high : out std_logic_vector(StateNumbers_2_BitsNumbers(channels_number+1) - 1 downto 0);
+      RAM_addr_high : out std_logic_vector(StateNumbers_2_BitsNumbers(channels_number) - 1 downto 0);
       --! Addr to be concatenated with the high. Tells which data is performed.
       RAM_addr_low  : out std_logic_vector(0 downto 0);
       RAM_read      : out std_logic;

@@ -116,7 +116,7 @@ architecture arch of Pulses_sequencer_test is
   signal ready         : std_logic;
   signal counter       : unsigned(6 downto 0)         := (others => '0');
   constant counter_max : unsigned(counter'range)      := (others => '1');
-  signal RAM_addr_high : std_logic_vector(StateNumbers_2_BitsNumbers(channels_number+1) - 1 downto 0);
+  signal RAM_addr_high : std_logic_vector(StateNumbers_2_BitsNumbers(channels_number) - 1 downto 0);
   signal RAM_addr_low  : std_logic_vector(0 downto 0);
   signal RAM_read      : std_logic;
   signal RAM_write     : std_logic;

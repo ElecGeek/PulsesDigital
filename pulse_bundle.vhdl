@@ -55,8 +55,8 @@ architecture arch of Pulses_bundle is
                                                 requested_amplitude_size + global_volume_size );
   constant RAM_padding : std_logic_vector( RAM_data_size - counter_length + state_length + 1 - 1 downto 0 ) :=
     ( others => '-' );
-  constant RAM_addr_size : positive := StateNumbers_2_BitsNumbers(channels_number+1);
-  signal RAM_addr_high   : std_logic_vector(StateNumbers_2_BitsNumbers(channels_number+1) - 1 downto 0);
+  constant RAM_addr_size : positive := 2 * StateNumbers_2_BitsNumbers(channels_number);
+  signal RAM_addr_high   : std_logic_vector(StateNumbers_2_BitsNumbers(channels_number) - 1 downto 0);
   signal RAM_addr_low    : std_logic_vector(0 downto 0);
   type state_RAM_elem is record
     padding : std_logic_vector(priv_amplitude_in'length - state_length - counter_length - 1 - 1
@@ -68,7 +68,7 @@ architecture arch of Pulses_bundle is
   signal RAM_write_struct     : state_RAM_elem;
   signal RAM_read_struct      : state_RAM_elem;
   signal RAM_unioned          : std_logic_vector(priv_amplitude_in'length - 1 downto 0);
-  type RAM_t is array(0 to 2 ** RAM_addr_size) of state_RAM_elem;
+  type RAM_t is array(0 to 2 ** RAM_addr_size - 1) of state_RAM_elem;
   signal the_RAM              : RAM_t;
   signal new_start            : std_logic;
   signal new_polar            : std_logic;
