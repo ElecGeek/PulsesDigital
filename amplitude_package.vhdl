@@ -5,20 +5,28 @@ use ieee.std_logic_1164.all,
 
 --! @brief 1 channel at a time amplitude computation
 --!
---! During each lower level frame, the amplitude of 1 channel
---!   is computed.\n
---! Since the pulse length is dozen of low level frames,
+--! @anchor amplitude_package_anchor
+--! During each lower level frame, the amplitude of 1 channel is computed.
+--! At the end of a super frame, all the channels are computed.
+--!   Since the pulse length is dozen of low level frames,
 --!   this latency is not an issue.\n
+--! During each lower level frame, the volume of the requested channel is computed.
+--! Since these two tasks are concurent, the new volume is not available
+--!   in case the requested channel is the same than the actual amplitude channel.\n
+--! Then, the worst case of a volume change request is N+1 frames/samples.
+--!   the best case is 1.\n
 --! For each computation, it takes
---!   * the volume
---!   * the normalized requested amplitude
+--!   * the volume modification request.
+--!   * the normalized requested amplitude.
 --! For each computation, it produces
+--!   * The actual volume in BCD mode.
 --!   * The actual amplitude.\n
 --! For resources optimizations
 --!   * the multiplication is made using successive additions
 --!     if the corresponding bit of the other operand is '1'
---!   * TODO the output is slightly modified to be close to the range 0 to rail.
---!     For more information, see in the entity.
+--!   * The RAM is a basic one without multiple accesses.
+--!     During the time the multiplication is computed,
+--!     the volume is updated and stored in the RAM.\n
 --! The propagation delays of the carry should be able to handle
 --!   a vector with a size of the sum requested_amplitude_size plus global_volume_size.
 

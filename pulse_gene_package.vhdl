@@ -7,22 +7,32 @@ use ieee.std_logic_1164.all,
 
 --! @brief N channels pulses generator
 --!
---! Each channel is intended to run with a dedicated 2 output DAC.\n
---! One output is for the positive part of the pulse,
---!   the other is for the negative part.\n
+--! There are two modes the totempole and the non totempole:\n
+--!   * Totempole: each channel runs with 2 outputs of DAC(s).
+--!     One output is for the positive part of the pulse,
+--!     the other is for the negative part.
+--!     The produce both the absolute (positive) value.
+--!     An offset for polarisation can be add to both.\n
+--!   * Non totempole: each channel runs with 1 output of DAC(s).
+--!     The output is a standard sign value with 2'nd complement.
+--!     No polarisation can be added.\n
 --! For each channel, it takes
 --!   * a starting signal
 --!   * a pulse amplitude
 --! For each channel, it produces
---!   * the transfer
---!   * the serial data\n
+--!   * the transfer and other handshake DAC signals
+--!   * the serial DAC data\n
 --! For resources optimization, it is designed to run the channels
 --!   one after the other, with some pipelines in some components.\n
 --! The pulse amplitude output comes from the level up.
---! It is the "product" of the required amplitude by the volume.\n
---! To optimize the verification effort,
---!   the amplitude is passed using parallel, one channel per frame.
---!   the starting is passed using parallel, one bit per channel.
+--! For more information, see @ref amplitude_package_anchor \n
+--! To optimize the verification effort, there are simple protocols
+--!   between the amplitude package and this one.
+--! The data is supposed to be stable at the start of each frame.\n
+--!   * the amplitude is passed using parallel, one channel per frame.
+--!     At the end of each super frame, all the channels are updated.\n
+--!   * the starting of the pulses is passed one bit per channel.
+--!     All the channels can be started at the same time.
 package Pulses_pac is
   --! @brief State machine to generate one pulse
   --!
