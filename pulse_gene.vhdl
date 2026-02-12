@@ -257,25 +257,27 @@ begin
       RST_if : if RST = '0' then
         -- We are running the individual state machines
         case sequencer_state is
-          when "0001" | "0110" =>
+          when "0001" | "0111" =>
             RAM_read        <= '1';
             sequencer_state <= std_logic_vector(unsigned(sequencer_state) + 1);
-          when "0010" | "0111" =>
+          when "0010" | "1000" =>
             RAM_read        <= '0';
             EN_process      <= '1';
             sequencer_state <= std_logic_vector(unsigned(sequencer_state) + 1);
-          when "0011" | "1000" =>
-            RAM_write       <= '1';
-            EN_process <= '0';
+          when "0011" | "1001" =>
+            EN_process      <= '0';
             sequencer_state <= std_logic_vector(unsigned(sequencer_state) + 1);
-          when "0100" =>
+          when "0100" | "1010" =>
+            RAM_write       <= '1';
+            sequencer_state <= std_logic_vector(unsigned(sequencer_state) + 1);
+          when "0101" =>
             RAM_write       <= '0';
             sequencer_state <= std_logic_vector(unsigned(sequencer_state) + 1);
-          when "1001" =>
+          when "1011" =>
             RAM_write                                                    <= '0';
             EN_shift(EN_shift'low + to_integer(unsigned(RAM_addr_high))) <= '1';
             sequencer_state                                              <= (others => '0');
-          when "0101" =>
+          when "0110" =>
             RAM_addr_low(0) <= '1';
             sequencer_state <= std_logic_vector(unsigned(sequencer_state) + 1);
           -- In fact $0000
