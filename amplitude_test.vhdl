@@ -32,11 +32,10 @@ begin
   M_gene : for ind1 in M_min to M_max generate
     N_gene : for ind2 in N_min to N_max generate
       
-      main_instanc : Amplitude_multiplier generic map (
-        MasterCLK_SampleCLK_ratio => 30
-        )
+      main_instanc : Amplitude_multiplier
         port map(
           CLK     => '0',
+          EN      => '1',
           load    => '0',
           execR2R => '0',
           M       => M(M'low - 1 + ind1 downto M'low),
@@ -66,22 +65,6 @@ architecture arch of Amplitudes_multiplier_test is
   signal load          : std_logic;
   signal counter       : unsigned(12 downto 0)   := (others      => '0');
   constant counter_max : unsigned(counter'range) := ("1", others => '0');
-  component Amplitude_multiplier_CXX_wrap is
-    port (
-      --! For more information see in the wrapped entity
-      CLK     : in  std_logic;
-      --! For more information see in the wrapped entity
-      load    : in  std_logic;
-      --! For more information see in the wrapped entity
-      execR2R : in  std_logic;
-      --! For more information see in the wrapped entity
-      M       : in  std_logic_vector(requested_amplitude_size - 1 downto 0);
-      --! For more information see in the wrapped entity
-      N       : in  std_logic_vector(global_volume_size - 1 downto 0);
-      --! For more information see in the wrapped entity
-      theOut  : out std_logic_vector(requested_amplitude_size + global_volume_size - 1 downto 0)
-      );
-  end component Amplitude_multiplier_CXX_wrap;
 
 begin
 
@@ -106,13 +89,10 @@ begin
     end if;
   end process main_proc;
 
-  main_instanc : Amplitude_multiplier_CXX_wrap
-    --generic map (
-    --MasterCLK_SampleCLK_ratio      => 30,
-    --Channels_number                => 2
-    --)
+  main_instanc : Amplitude_multiplier
     port map(
       CLK     => CLK,
+      EN      => '1',
       load    => load,
       execR2R => '0',
       M       => M,

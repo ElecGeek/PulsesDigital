@@ -3,7 +3,7 @@ use ieee.std_logic_1164.all,
   ieee.numeric_std.all,
   work.Utils_pac.StateNumbers_2_BitsNumbers,
   work.DAC_package.all,
-  work.Amplitude_package.Pulse_start_record,
+  work.Amplitude_package.Pulse_start_vector,
   work.Amplitude_package.Pulse_amplitude_record,
   work.Pulses_pac.pulses_bundle,
   work.DAC_emulators_package.all;
@@ -32,7 +32,7 @@ architecture arch of Pulses_bundle_test is
   signal CLK_serial           : std_logic_vector(2 downto 0);
   signal transfer_serial      : std_logic_vector(1 downto 0);
   signal update_serial        : std_logic_vector(0 downto 0);
-  signal Pulse_start_data     : Pulse_start_record;
+  signal Pulse_start_data     : Pulse_start_vector;
   signal Pulse_amplitude_data : Pulse_amplitude_record;
   signal start_frame          : std_logic;
 begin

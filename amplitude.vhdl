@@ -28,14 +28,13 @@ use ieee.std_logic_1164.all,
 --! It consume one more CLK cycle. It has a pretty good result.
 --! The number of shifts is the average value of N and M, floored, minus 1.
 entity Amplitude_multiplier is
-  generic (
-    --! Does not impact anything.
-    --! It is only to notice the relevance of the computation
-    MasterCLK_SampleCLK_ratio : integer range 10 to 40
-    );
   port (
     --! Master clock
     CLK     : in  std_logic;
+    --! 0's are introduced while shifting the operands.
+    --! when the product is over, the registers shift 0's.
+    --! This signal stops everything.
+    EN      : in  std_logic;
     --! Loads new operands, otherwise computes
     load    : in  std_logic;
     --! Executes the rail to rail correction
@@ -104,18 +103,20 @@ begin
         opA       <= "0" & M & padding_M;
         opB       <= N;
         opOut     <= (others => '0');
-      elsif execR2R = '1' then
-        padding_shifts := (others => '0');
-        opOut <= std_logic_vector(unsigned(opOut) +
-                                  unsigned(padding_shifts & opOut(opOut'high downto opOut'low + N_shifts)));
-      else
-        if opB(opB'high) = '1' then
-          opOut <= std_logic_vector(unsigned(opOut) + unsigned(opA));
+      elsif EN = '1' then
+        if execR2R = '1' then
+          padding_shifts := (others => '0');
+          opOut <= std_logic_vector(unsigned(opOut) +
+                                    unsigned(padding_shifts & opOut(opOut'high downto opOut'low + N_shifts)));
+        else
+          if opB(opB'high) = '1' then
+            opOut <= std_logic_vector(unsigned(opOut) + unsigned(opA));
+          end if;
+          opA(opA'high - 1 downto opA'low) <= opA(opA'high downto opA'low + 1);
+          opA(opA'high)                    <= '0';
+          opB(opB'high downto opB'low + 1) <= opB(opB'high - 1 downto opB'low);
+          opB(opB'low)                     <= '0';
         end if;
-        opA(opA'high - 1 downto opA'low) <= opA(opA'high downto opA'low + 1);
-        opA(opA'high)                    <= '0';
-        opB(opB'high downto opB'low + 1) <= opB(opB'high - 1 downto opB'low);
-        opB(opB'low)                     <= '0';
       end if IF_cmd;
     end if;
   end process main_proc;
@@ -124,38 +125,68 @@ end architecture arch;
 
 library ieee;
 use ieee.std_logic_1164.all,
-  work.Amplitude_package.requested_amplitude_size,
-  work.Amplitude_package.global_volume_size,
-  work.Amplitude_package.Amplitude_multiplier;
+  ieee.numeric_std.all,
+  work.Utils_pac.StateNumbers_2_BitsNumbers,
+  work.DAC_package.channels_number,
+  work.Amplitude_package.all;
 
-entity Amplitude_multiplier_CXX_wrap is
+
+entity amplitude_bundle is
   port (
-    --! For more information see in the wrapped entity
-    CLK     : in  std_logic;
-    --! For more information see in the wrapped entity
-    load    : in  std_logic;
-    --! For more information see in the wrapped entity
-    execR2R : in  std_logic;
-    --! For more information see in the wrapped entity
-    M       : in  std_logic_vector(requested_amplitude_size - 1 downto 0);
-    --! For more information see in the wrapped entity
-    N       : in  std_logic_vector(global_volume_size - 1 downto 0);
-    --! For more information see in the wrapped entity
-    theOut  : out std_logic_vector(requested_amplitude_size + global_volume_size - 1 downto 0)
-    );
-end entity Amplitude_multiplier_CXX_wrap;
+    CLK                 : in  std_logic;
+    RST                 : in  std_logic;
+    --! Starts the product
+    --! In case of a concurrent run with the volume,
+    --!   connect both with start_frame
+    --! In case of a serial run after the volume,
+    --!   connect to the ready output of the volume
+    start_prod          : in  std_logic;
+    --! Always connected to the global start frame
+    --! It clears the ready output
+    start_frame         : in  std_logic;
+    which_channel       : in  std_logic_vector(StateNumbers_2_BitsNumbers(channels_number) - 1 downto 0);
+    requested_amplitude : in  std_logic_vector;
+    requested_volume    : in  std_logic_vector;
+    ready               : out std_logic;
+    pulse_amplitude     : out Pulse_amplitude_record);
+end entity amplitude_bundle;
 
-architecture arch of Amplitude_multiplier_CXX_wrap is
+architecture arch of amplitude_bundle is
+  signal load              : std_logic;
+  signal sequencer_counter : std_logic_vector(StateNumbers_2_BitsNumbers(requested_volume'length + 2) - 1 downto 0);
+begin  -- architecture arch
 
-begin
-  instanc : Amplitude_multiplier
-    generic map (
-      MasterCLK_SampleCLK_ratio => 20)
-    port map (
-      CLK     => CLK,
-      load    => load,
-      execR2R => execR2R,
-      M       => M,
-      N       => N,
-      theOut  => theOut);
+  main_proc : process (CLK) is
+  begin  -- process main_proc
+    if rising_edge(CLK) then
+      RST_IF : if RST = '0' then
+        if sequencer_counter = std_logic_vector(to_unsigned(0, sequencer_counter'length)) then
+          if start_prod = '1' then
+            sequencer_counter <= std_logic_vector(to_unsigned(1, sequencer_counter'length));
+            ready <= '0';
+            load <= '1';
+          elsif start_frame = '1' then
+            ready <= '0';
+          end if;
+        elsif to_integer( unsigned(sequencer_counter)) = ( requested_volume'length + 1) then
+          ready <= '1';
+        else
+          load <= '0';
+          sequencer_counter <= std_logic_vector(unsigned (sequencer_counter) + 1);
+        end if;
+      else
+        ready             <= '1';
+        sequencer_counter <= (others => '0');
+      end if RST_IF;
+    end if;
+  end process main_proc;
+
+  Amplitude_multiplier_instanc : Amplitude_multiplier port map (
+    CLK     => CLK,
+    EN      => '1',
+    load    => load,
+    execR2R => '0',
+    M       => requested_amplitude,
+    N       => requested_volume,
+    theOut  => pulse_amplitude.the_amplitude);
 end architecture arch;

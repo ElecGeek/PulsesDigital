@@ -5,7 +5,7 @@ use ieee.std_logic_1164.all,
   work.Amplitude_package.requested_amplitude_size,
   work.Amplitude_package.global_volume_size,
   work.Amplitude_package.Pulse_amplitude_record,
-  work.Amplitude_package.Pulse_start_record,
+  work.Amplitude_package.Pulse_start_vector,
   work.Dac_package.all,
   work.Pulses_pac.all;
 --! @brief Handles N pulse channels
@@ -24,7 +24,7 @@ entity Pulses_bundle is
     --! coming from the amplitude
     pulse_amplitude_data : in  pulse_amplitude_record;
     --! coming from the amplitude
-    pulse_start_data   : in  pulse_start_record;
+    pulse_start_data   : in  pulse_start_vector;
     --! The amplitude is involved in the frame end as well, at least for testing
     ready_amplitude    : in  std_logic;
     --! The amplitude is involved in the frame end as well, at least for testing

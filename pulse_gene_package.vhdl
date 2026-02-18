@@ -3,10 +3,11 @@ use ieee.std_logic_1164.all,
   work.Utils_pac.StateNumbers_2_BitsNumbers,
   work.DAC_package.channels_number,
   work.Amplitude_package.pulse_amplitude_record,
-  work.Amplitude_package.pulse_start_record;
+  work.Amplitude_package.pulse_start_vector;
 
 --! @brief N channels pulses generator
 --!
+--! @anchor pulse_gene_package_anchor
 --! There are two modes the totempole and the non totempole:\n
 --!   * Totempole: each channel runs with 2 outputs of DAC(s).
 --!     One output is for the positive part of the pulse,
@@ -170,7 +171,7 @@ package Pulses_pac is
       --! coming from the amplitude
       pulse_amplitude_data : in  pulse_amplitude_record;
       --! coming from the amplitude
-      pulse_start_data     : in  pulse_start_record;
+      pulse_start_data     : in  pulse_start_vector;
       --! The amplitude is involved in the frame end as well, at least for testing
       ready_amplitude      : in  std_logic;
       --! The amplitude is involved in the frame end as well, at least for testing

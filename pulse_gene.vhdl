@@ -37,19 +37,19 @@ architecture arch of Pulses_stateMachine is
   constant counter_reset : std_logic_vector(priv_counter_out'range) := (others => '0');
 begin
 -- State variable definition
-  -- 0000 : wait for start, 0 negative
+  -- 0000 : 0 negative, wait for hold off counter, wait for start
   -- 0001 : 1/4 positive
   -- 0010 : 1/2 positive
   -- 0011 : 3/4 positive
-  -- 0100 : full positive, wait for counter
+  -- 0100 : full positive, wait for pulse width counter
   -- 0101 : 3/4 positive
   -- 0110 : 1/2 positive
   -- 0111 : 1/4 positive
-  -- 1000 : 0 positive, wait for separ_count
+  -- 1000 : 0 positive, wait for separation counter
   -- 1001 : 1/4 negative
   -- 1010 : 1/2 negative
   -- 1011 : 3/4 negative
-  -- 1100 : full negative, wait for counter
+  -- 1100 : full negative, wait for pulse width counter
   -- 1101 : 3/4 negative
   -- 1110 : 1/2 negative
   -- 1111 : 1/4 negative

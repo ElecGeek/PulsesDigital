@@ -76,12 +76,14 @@ amplitude_bundle_simul : $(SCRDIR)amplitude.vhdl $(SCRDIR)amplitude_test.vhdl $(
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)volume_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)volume.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_test.vhdl
-	$(GHDL_PROG) -e $(VFLAGS) Amplitudes_multiplier_R2R_test
-	$(GHDL_PROG) -r $(VFLAGS) Amplitudes_multiplier_R2R_test --vcd=$(WAVDESTDIR)amplitudes_multiplier_R2R_test.wav 2>&1 | tee $(DESTDIR)amplitudes_multiplier_R2R_test.out.txt
-	$(GHDL_PROG) -e $(VFLAGS) Amplitudes_sequencer_test
-	$(GHDL_PROG) -r $(VFLAGS) Amplitudes_sequencer_test --vcd=$(WAVDESTDIR)Amplitudes_sequencer_test.wav 2>&1 | tee $(DESTDIR)Amplitudes_sequencer_test.out.txt
+#	$(GHDL_PROG) -e $(VFLAGS) Amplitudes_multiplier_R2R_test
+#	$(GHDL_PROG) -r $(VFLAGS) Amplitudes_multiplier_R2R_test --vcd=$(WAVDESTDIR)amplitudes_multiplier_R2R_test.wav 2>&1 | tee $(DESTDIR)amplitudes_multiplier_R2R_test.out.txt
+#	$(GHDL_PROG) -e $(VFLAGS) Amplitudes_sequencer_test
+#	$(GHDL_PROG) -r $(VFLAGS) Amplitudes_sequencer_test --vcd=$(WAVDESTDIR)Amplitudes_sequencer_test.wav 2>&1 | tee $(DESTDIR)Amplitudes_sequencer_test.out.txt
 
 amplitude_parts_cxx : $(SCRDIR)amplitude.vhdl $(SCRDIR)amplitude_test.vhdl $(SCRDIR)utils_package.vhdl $(SCRDIR)amplitude_package.vhdl 
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl
@@ -113,6 +115,10 @@ project_synth : $(SCRDIR)pulse_gene.vhdl $(SCRDIR)pulse_gene_test.vhdl  $(SCRDIR
 	$(NEXTPNR-ICE40_PROG) --hx4k --package tq144 --freq 30.00 --top Project_bundle --asc $(SYNTHDESTDIR)project_lowlevel.asc --json $(SYNTHDESTDIR)project_lowlevel.ice40.json --placed-svg $(SYNTHDESTDIR)project_lowlevel.placed.svg --routed-svg $(SYNTHDESTDIR)project_lowlevel.routed.svg --report $(SYNTHDESTDIR)project_lowlevel.report.json 2>&1 |tee $(SYNTHDESTDIR)project_lowlevel.P_and_R.out.txt
 	$(ICEPACK) $(SYNTHDESTDIR)project_lowlevel.asc $(SYNTHDESTDIR)project_lowlevel.bin 2>&1 |tee $(SYNTHDESTDIR)project_lowlevel.pack.out.txt
 
+
+project_synth_gui : project_synth
+	$(NEXTPNR-ICE40_PROG) --hx4k --package tq144 --freq 30.00 --top Project_bundle --asc $(SYNTHDESTDIR)project_lowlevel.asc --json $(SYNTHDESTDIR)project_lowlevel.ice40.json --gui
+
 amplitude_low_level_synth : $(SCRDIR)amplitude.vhdl $(SCRDIR)amplitude_test.vhdl $(SCRDIR)utils_package.vhdl $(SCRDIR)amplitude_package.vhdl 
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_package.vhdl
@@ -126,16 +132,29 @@ amplitude_low_level_synth : $(SCRDIR)amplitude.vhdl $(SCRDIR)amplitude_test.vhdl
 # --hx4k --lp384
 # package cm225 qn32
 
-pulse_gene_low_level_cxxrtl : $(SCRDIR)pulse_gene_test.vhdl $(SCRDIR)pulse_gene_test.vhdl  $(SCRDIR)utils_package.vhdl $(SCRDIR)pulse_gene_package.vhdl
+pulse_gene_low_level_cxxrtl : $(SCRDIR)pulse_gene_test.vhdl $(SCRDIR)pulse_gene_test.vhdl  $(SCRDIR)utils_package.vhdl $(SCRDIR)pulse_gene_package.vhdl $(SCRDIR)DAC_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_gene_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_gene.vhdl
 	mkdir -p $(SYNTHDESTDIR)
 	$(YOSYS_PROG) -m ghdl -p '$(GHDL_PROG) $(VFLAGS) Pulses_bundle; write_cxxrtl $(SYNTHDESTDIR)pulse_gene_lowlevel.rtl.cxx' 2>&1 |tee $(SYNTHDESTDIR)pulse_gene_lowlevel.synth.out.txt
 
+amplitude_cxxrtl : $(SCRDIR)amplitude.vhdl $(SCRDIR)amplitude_test.vhdl $(SCRDIR)utils_package.vhdl $(SCRDIR)amplitude_package.vhdl $(SCRDIR)DAC_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_package.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude.vhdl
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_multiplier_CXX_wrap.vhdl
+	mkdir -p $(SYNTHDESTDIR)
+	$(YOSYS_PROG) -m ghdl -p '$(GHDL_PROG) $(VFLAGS) Amplitude_multiplier_CXX_wrap; write_cxxrtl $(SYNTHDESTDIR)amplitude_multiplier_CXX_wrap.rtl.cxx' 2>&1 |tee $(SYNTHDESTDIR)amplitude_multiplier_CXX_wrap.synth.out.txt
+
 
 all_simul : DAC_simul pulse_parts_simul pulse_bundle_simul amplitude_parts_simul
 	@echo "Done"
+
+all_cxxrtl : pulse_gene_low_level_cxxrtl amplitude_cxxrtl
 
 clean	:
 	rm -f work-obj93.cf work-obj08.cf 
