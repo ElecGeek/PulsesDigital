@@ -154,19 +154,27 @@ end entity amplitude_bundle;
 architecture arch of amplitude_bundle is
   signal load              : std_logic;
   signal sequencer_counter : std_logic_vector(StateNumbers_2_BitsNumbers(requested_volume'length + 2) - 1 downto 0);
+  signal amplitude_out : std_logic_vector( pulse_amplitude.the_amplitude'range );
+  signal channel_temp : std_logic_vector(which_channel'range);
 begin  -- architecture arch
 
   main_proc : process (CLK) is
   begin  -- process main_proc
     if rising_edge(CLK) then
       RST_IF : if RST = '0' then
+        assert ( start_prod and start_frame ) = '0'
+          report "start_prod and start_frame should neve be asserted at the same time"
+          severity error;
         if sequencer_counter = std_logic_vector(to_unsigned(0, sequencer_counter'length)) then
           if start_prod = '1' then
             sequencer_counter <= std_logic_vector(to_unsigned(1, sequencer_counter'length));
             ready <= '0';
             load <= '1';
+            channel_temp <= which_channel;
           elsif start_frame = '1' then
             ready <= '0';
+            pulse_amplitude.the_amplitude <= amplitude_out;
+            pulse_amplitude.which_channel <= channel_temp;
           end if;
         elsif to_integer( unsigned(sequencer_counter)) = ( requested_volume'length + 1) then
           ready <= '1';
@@ -188,5 +196,5 @@ begin  -- architecture arch
     execR2R => '0',
     M       => requested_amplitude,
     N       => requested_volume,
-    theOut  => pulse_amplitude.the_amplitude);
+    theOut  => amplitude_out);
 end architecture arch;

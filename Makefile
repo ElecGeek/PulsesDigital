@@ -60,7 +60,7 @@ pulse_bundle_simul : $(SCRDIR)pulse_gene.vhdl $(SCRDIR)pulse_gene_test.vhdl  $(S
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)pulse_bundle_test.vhdl
 	$(GHDL_PROG) -e $(VFLAGS) Pulses_bundle_test_default_controler
 	$(GHDL_PROG) -r $(VFLAGS) Pulses_bundle_test_default_controler --vcd=$(WAVDESTDIR)Pulses_bundle_test.wav 2>&1 | tee $(DESTDIR)Pulses_bundle_test.out.txt
-
+# Test 1C
 amplitude_parts_simul : $(SCRDIR)amplitude.vhdl $(SCRDIR)amplitude_test.vhdl $(SCRDIR)utils_package.vhdl $(SCRDIR)amplitude_package.vhdl 
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_package.vhdl
@@ -71,17 +71,16 @@ amplitude_parts_simul : $(SCRDIR)amplitude.vhdl $(SCRDIR)amplitude_test.vhdl $(S
 	$(GHDL_PROG) -r $(VFLAGS) Amplitudes_multiplier_R2R_test --vcd=$(WAVDESTDIR)amplitudes_multiplier_R2R_test.wav 2>&1 | tee $(DESTDIR)amplitudes_multiplier_R2R_test.out.txt
 	$(GHDL_PROG) -e $(VFLAGS) Amplitudes_multiplier_test
 	$(GHDL_PROG) -r $(VFLAGS) Amplitudes_multiplier_test --vcd=$(WAVDESTDIR)Amplitudes_multiplier_test.wav 2>&1 | tee $(DESTDIR)Amplitudes_multiplier_test.out.txt
-
-amplitude_bundle_simul : $(SCRDIR)amplitude.vhdl $(SCRDIR)amplitude_test.vhdl $(SCRDIR)utils_package.vhdl $(SCRDIR)amplitude_package.vhdl 
+# Test 1D
+volume_parts_simul : $(SCRDIR)amplitude.vhdl $(SCRDIR)amplitude_test.vhdl $(SCRDIR)utils_package.vhdl $(SCRDIR)amplitude_package.vhdl 
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)DAC_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_package.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)volume_package.vhdl
-	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude.vhdl
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)volume.vhdl
-	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)amplitude_test.vhdl
-#	$(GHDL_PROG) -e $(VFLAGS) Amplitudes_multiplier_R2R_test
-#	$(GHDL_PROG) -r $(VFLAGS) Amplitudes_multiplier_R2R_test --vcd=$(WAVDESTDIR)amplitudes_multiplier_R2R_test.wav 2>&1 | tee $(DESTDIR)amplitudes_multiplier_R2R_test.out.txt
+	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)volume_test.vhdl
+	$(GHDL_PROG) -e $(VFLAGS) volume_sequencer_test
+	$(GHDL_PROG) -r $(VFLAGS) volume_sequencer_test --vcd=$(WAVDESTDIR)volume_sequencer_test.wav 2>&1 | tee $(DESTDIR)volume_sequencer_test.out.txt
 #	$(GHDL_PROG) -e $(VFLAGS) Amplitudes_sequencer_test
 #	$(GHDL_PROG) -r $(VFLAGS) Amplitudes_sequencer_test --vcd=$(WAVDESTDIR)Amplitudes_sequencer_test.wav 2>&1 | tee $(DESTDIR)Amplitudes_sequencer_test.out.txt
 
