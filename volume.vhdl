@@ -63,21 +63,21 @@ begin
             requested_amplitude_update <= '1';
             RAM_read                   <= '0';
             sequencer_state            <= std_logic_vector(unsigned(sequencer_state) + 1);
-            requested_BCD_2_bin <= "01";
+            requested_BCD_2_bin        <= "01";
           when "0110" =>
             -- store in the 2 registers
             requested_amplitude_update <= '0';
             sequencer_state            <= std_logic_vector(unsigned(sequencer_state) + 1);
-            requested_BCD_2_bin <= "10";
+            requested_BCD_2_bin        <= "10";
           when "0111" =>
-            RAM_write       <= '1';
+            RAM_write           <= '1';
             -- add register with the register divided by 2
-            sequencer_state <= std_logic_vector(unsigned(sequencer_state) + 1);
+            sequencer_state     <= std_logic_vector(unsigned(sequencer_state) + 1);
             requested_BCD_2_bin <= "11";
           when "1000" =>
             -- addr register with the register divided by 8
-            sequencer_state <= std_logic_vector(unsigned(sequencer_state) + 1);
-            RAM_write       <= '0';
+            sequencer_state     <= std_logic_vector(unsigned(sequencer_state) + 1);
+            RAM_write           <= '0';
             requested_BCD_2_bin <= "00";
           when "1001" =>
             RAM_addr_low    <= "00";
@@ -190,18 +190,86 @@ library ieee;
 use ieee.std_logic_1164.all,
   ieee.numeric_std.all,
   work.Utils_pac.StateNumbers_2_BitsNumbers,
-  work.DAC_package.channels_number;
+  work.DAC_package.channels_number,
+  work.Amplitude_package.global_volume_size;
 
-entity amplitude_request is
+--! @brief Converts the BCD value into binary
+--!
+--! 
+
+entity volume_BCD_2_binary is
+  generic (
+    extra_computation_bits : natural := 2);
   port (
     CLK                 : in  std_logic;
     RST                 : in  std_logic;
-    request             : in  std_logic;
-    --! Channel currently modified
-    --! It should be stable during the super frame.
-    which_channel       : in  std_logic_vector(StateNumbers_2_BitsNumbers(channels_number) - 1 downto 0);
-    amplitude_in        : in  std_logic_vector;
-    amplitude_requested : in  std_logic_vector;
-    amplitude_out       : out std_logic_vector
+    requested_BCD_2_bin : in  std_logic_vector(1 downto 0);
+    volume_BCD          : in  std_logic_vector;
+    volume_binary       : out std_logic_vector(global_volume_size - 1 downto 0)
     );
-end entity amplitude_request;
+end entity volume_BCD_2_binary;
+
+
+architecture arch of volume_BCD_2_binary is
+  signal the_result  : std_logic_vector(volume_binary'length + extra_computation_bits - 1 downto 0);
+  signal the_operand : std_logic_vector(the_result'range);
+begin  -- architecture arch
+
+  assert volume_BCD'length > 3
+    report "The size of the BCD volume (" & integer'image(volume_BCD'length) &
+    ") should be at least 4 (one digit)"
+    severity error;
+  assert volume_BCD'length mod 4 = 0 or volume_BCD'length mod 4 = 1
+    report "It is discourageous to have a BCD volume (" & integer'image(volume_BCD'length) &
+    ") not multiple of 4 (entire digits) or multiple of 4 +1 (entire digits + 1/2)"
+    severity warning;
+  assert volume_BCD'length mod 4 /= 0 report "Instantiating the volume BCD to binary conversion with exactly " &
+    integer'image(volume_BCD'length / 4) & " BCD digits, " &
+    integer'image(volume_binary'length) & " output bits, " &
+    integer'image(extra_computation_bits) & " extra computation bits."
+    severity note;
+  assert volume_BCD'length mod 4 = 0 report "Instantiating the volume BCD to binary conversion " &
+    integer'image(volume_BCD'length / 4) & " BCD digits and a " &
+    "and 1/" & integer'image(2 ** (volume_BCD'length mod 4)) & ", " &
+    integer'image(volume_binary'length) & " output bits, " &
+    integer'image(extra_computation_bits) & " extra computation bits."
+    severity note;
+
+  volume_binary <= the_result(the_result'high downto the_result'high - volume_binary'length + 1);
+
+  main_proc : process (CLK) is
+    variable ind_sce  : integer;
+    variable result_v : std_logic_vector(the_result'range);
+  begin  -- process main_proc
+    if rising_edge(CLK) then            -- rising clock edge
+      case requested_BCD_2_bin is
+        when "01" =>
+          ind_sce := volume_BCD'high;
+          for ind_dest in result_v'high downto result_v'low loop
+            result_v(ind_dest) := volume_BCD(ind_sce);
+            if ind_sce > volume_BCD'low then
+              ind_sce := ind_sce - 1;
+            else
+              ind_sce := volume_BCD'high;
+            end if;
+          end loop;
+          the_result                    <= result_v;
+          the_operand(the_operand'high) <= '0';
+          the_operand(the_operand'high - 1 downto the_operand'low) <=
+            result_v(result_v'high downto result_v'low + 1);
+        when "10" =>
+          the_result <= std_logic_vector(unsigned(the_result) + unsigned(the_operand));
+          -- the_operand( the_operand'high ) is already '0', the the shift is
+          -- 0 x y z t   to
+          -- 0 0 0 x y
+          the_operand(the_operand'high - 1 downto the_operand'high - 2) <= "00";
+          the_operand(the_operand'high - 3 downto the_operand'low) <=
+            result_v(the_operand'high - 1 downto the_operand'low + 2);
+        when "11" =>
+          the_result <= std_logic_vector(unsigned(the_result) + unsigned(the_operand));
+        when others => null;
+      end case;
+    end if;
+  end process main_proc;
+
+end architecture arch;

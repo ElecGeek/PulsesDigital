@@ -148,15 +148,14 @@ package Volume_package is
 
 
   component volume_BCD_2_binary is
+    generic (
+      extra_computation_bits : natural := 2);
     port (
       CLK                 : in  std_logic;
       RST                 : in  std_logic;
-      requested_BCD_2_bin : out std_logic_vector(1 downto 0);
-      --! Channel currently modified
-      --! It should be stable during the super frame.
-      which_channel       : in  std_logic_vector(StateNumbers_2_BitsNumbers(channels_number) - 1 downto 0);
+      requested_BCD_2_bin : in  std_logic_vector(1 downto 0);
       volume_BCD          : in  std_logic_vector;
-      binary_volume       : out std_logic_vector);
+      volume_binary       : out std_logic_vector);
   end component volume_BCD_2_binary;
 
 end package Volume_package;
