@@ -62,14 +62,14 @@ begin
       RST,
       start_frame,
       ready                      => open,
-      start_amplitude            => open,
+      start_vol_ampl_product     => open,
       RAM_addr_high              => open,
       RAM_addr_low               => open,
       RAM_read                   => open,
       RAM_write                  => open,
-      request_amplitude_store    => request_amplitude_store,
       requested_volume_oper      => open,
-      requested_amplitude_update => open
+      requested_amplitude_update => open,
+      computed_volume_writeback  => open
       );
 
 end architecture arch;
@@ -173,7 +173,7 @@ begin
         " times and is stable " & integer'image(output_same) & " times"
         severity error;
       assert false
-        report "Volume BCD to binary maximum value: 0x" & to_hstring( output_if_BCD_max )
+        report "Volume BCD to binary maximum value: 0x" & to_hstring(output_if_BCD_max)
         severity note;
 
       wait;
@@ -182,7 +182,7 @@ begin
 
   volume_BCD_2_binary_instanc : volume_BCD_2_binary
     generic map (
-      extra_computation_bits => extra_computation_bits )
+      extra_computation_bits => extra_computation_bits)
     port map (
       CLK,
       RST,

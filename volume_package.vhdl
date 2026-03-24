@@ -72,18 +72,28 @@ package Volume_package is
 
   --! @brief sequencer of the volume computation
   --!
-  --! The sequencer is separated from the operation themselves.
-  --! * to make things independent tin order to improve the verification.
+  --! The sequencer is separated from the operation themselves\n
+  --! * to make things independent tin order to improve the verification.\n
   --! * to allow to raise the frequency, using a specific RAM.
   --!   If there is an assert on raising/falling edge or on state,
-  --!   the clock cycles for every operation is reduced.
+  --!   the clock cycles for every operation is reduced.\n
 
-  --! The sequencer increments the channel at each frame.
-  --! If a modification request matches the channel, it computes it.
+  --! The sequencer increments the channel at each frame.\n
+  --! If the requests match the channel:\n
+  --! * the volume modification is computed.\n
+  --! * The new amplitude is updated.\n
+  --! If the requests does not match the channel, the data is left as it.
+  --! The data is written back to the RAM.\n
   --! The request should be stable for all the super frame.
-  --! The channel number is passed to the amplitude and the pulse gene for update.
+  --! The channel number is passed to the amplitude and the pulse gene for update.\n
 
-  --! 
+  --! Since the multiplication can run only with both the volume and the amplitude,
+  --!   the volume is read first as its computation needs clock cycles.
+  --! Second, the volume is processed and
+  --!   the amplitude is read, checked for update and written back.\n
+  --!
+  --!
+  --! *** OUTDATED ***, now the stored volume for the mute and back has been inserted
   --! Step 1A: read the BCD volume request  oper="001"
   --! Step 1B: generates the pulse of the end of the super frame ***if so***
   --!          ... or create a low frequency clock
@@ -116,15 +126,15 @@ package Volume_package is
       start_frame                : in  std_logic;
 --! The frame is over
       ready                      : out std_logic;
-      start_amplitude            : out std_logic;
+      start_vol_ampl_product          : out std_logic;
       RAM_addr_high              : out std_logic_vector(StateNumbers_2_BitsNumbers(channels_number) - 1 downto 0);
 --! Which data
       RAM_addr_low               : out std_logic_vector(1 downto 0);
       RAM_read                   : out std_logic;
       RAM_write                  : out std_logic;
-      request_amplitude_store    : out std_logic;
-      requested_volume_oper      : out std_logic_vector(1 downto 0);
+      requested_volume_oper      : out std_logic_vector(2 downto 0);
       requested_amplitude_update : out std_logic;
+      computed_volume_writeback  : out std_logic;
       requested_BCD_2_bin        : out std_logic_vector(1 downto 0);
       end_super_frame            : out std_logic
       );
@@ -133,16 +143,28 @@ package Volume_package is
 
   component volume_BCD_request is
     port (
-      CLK        : in  std_logic;
-      RST        : in  std_logic;
+      CLK                  : in  std_logic;
+      RST                  : in  std_logic;
+      does_channel_matches : in  std_logic;
 --!
-      load       : in  std_logic;
-      actual_vol : in  std_logic_vector;
-      speed      : in  std_logic_vector;
-      --! 00 = idle, 01 = mute, 10 = down, 01 = up
+--! 00- = idle, 010 = load actual volume, 011 = load stored volume and mute recover
+--! 100 = run the addition or subtraction, 101 = check BCD carries
+--! 110 = apply corrections
+      action               : in  std_logic_vector(2 downto 0);
+      volumes_input        : in  std_logic_vector;
+      mute_recover_in     : in  std_logic;
+--! Speed of the up and down.\n
+--! The increment or decrement can be performed for 5, 2 or 1
+--!   of a certain digit.
+--! the inc/dec of the highest digit can only be 1.\n
+--! the value others=>'0' is for this highest digit.
+--! Highest values of the speed act on the inc/dec of lower digits. 
+      speed                : in  std_logic_vector;
+      --! 00 = idle, 01 = mute, 10 = down, 11 = up
       --! In case of mute, speed=0 mute one, speed > 0 mute all
-      request    : in  std_logic_vector(1 downto 0);
-      output_vol : out std_logic_vector
+      request              : in  std_logic_vector(1 downto 0);
+      output_vol           : out std_logic_vector;
+      mute_recover_out     : out std_logic
       );
   end component volume_BCD_request;
 
