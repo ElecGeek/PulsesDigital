@@ -83,6 +83,82 @@ use ieee.std_logic_1164.all,
   work.volume_package.all;
 
 
+entity Volume_BCD_request_test is
+end entity Volume_BCD_request_test;
+
+architecture arch of Volume_BCD_request_test is
+  signal CLK                  : std_logic                            := '0';
+  signal RST                  : std_logic                            := '1';
+  signal main_counter         : std_logic_vector(11 downto 0)        := (others => '0');
+  signal main_counter_max     : std_logic_vector(main_counter'range) := (others => '1');
+  signal opcode_counter       : std_logic_vector(1 downto 0)         := "00";
+  signal does_channel_matches : std_logic                            := '0';
+  signal action_counter       : unsigned(2 downto 0)                 := "000";
+  signal output_volume        : std_logic_vector(main_counter'range);
+begin  -- architecture arch
+  main_proc : process is
+    variable ind_9         : integer;
+    variable digit_extract : natural;
+    variable is_BCD        : boolean;
+  begin
+    if main_counter /= main_counter_max then
+      CLK_IF : if CLK = '1' then
+        if action_counter = "111" then
+          CHAN_MATCH_IF : if does_channel_matches = '1' then
+            if opcode_counter = "10" then
+              opcode_counter <= "11";
+              main_counter   <= std_logic_vector(unsigned(main_counter) + 1);
+            else
+              opcode_counter <= "10";
+            end if;
+          end if CHAN_MATCH_IF;
+          does_channel_matches <= not does_channel_matches;
+        end if;
+        action_counter <= action_counter + 1;
+      end if CLK_IF;
+      CLK <= not CLK;
+      wait for 1 ps;
+    else
+      -- assert output_decr /= 0 report "Volume BCD to binary increases " & integer'image(output_incr) &
+      --   " times and is stable " & integer'image(output_same) & " times"
+      --   severity note;
+      -- assert output_decr = 0 report "Volume BCD to binary increases " & integer'image(output_incr) &
+      --   " times, DECREASES " & integer'image(output_decr) &
+      --   " times and is stable " & integer'image(output_same) & " times"
+      --   severity error;
+      -- assert false
+      --   report "Volume BCD to binary maximum value: 0x" & to_hstring(output_if_BCD_max)
+      --   severity note;
+
+      wait;
+    end if;
+  end process main_proc;
+
+  volume_BCD_request_instanc : volume_BCD_request
+    port map (
+      CLK,
+      RST,
+      does_channel_matches ,
+      action               => std_logic_vector(action_counter),
+      volumes_input        => main_counter,
+      mute_recover_in      => '0', 
+      speed                => "0010",
+      request              => opcode_counter,
+      volumes_output       => output_volume,
+      mute_recover_out     => open
+      );
+
+end architecture arch;
+
+
+library ieee;
+use ieee.std_logic_1164.all,
+  ieee.numeric_std.all,
+  work.Utils_pac.StateNumbers_2_BitsNumbers,
+  work.amplitude_package.global_volume_size,
+  work.volume_package.all;
+
+
 entity Volume_BCD_2_bin_test is
   generic (
     extra_computation_bits : natural := 3);
@@ -131,7 +207,7 @@ begin
               digit_extract := 0;
             end if;
           end loop BCD_check;
-          if is_BCD then
+          IS_BCD_IF : if is_BCD then
             output_if_BCD      <= output_binary;
             output_if_BCD_last <= output_binary;
             -- Get the highest reachable value
@@ -153,7 +229,7 @@ begin
           else
             -- For wave viewer only, tells this one is excluded
             output_if_BCD <= (others => 'Z');
-          end if;
+          end if IS_BCD_IF;
         else
           RST            <= '0';
           opcode_counter <= std_logic_vector(unsigned(opcode_counter) + 1);

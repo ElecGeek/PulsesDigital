@@ -83,6 +83,8 @@ volume_parts_simul : $(SCRDIR)amplitude.vhdl $(SCRDIR)amplitude_test.vhdl $(SCRD
 	$(GHDL_PROG) -r $(VFLAGS) volume_sequencer_test --vcd=$(WAVDESTDIR)volume_sequencer_test.wav 2>&1 | tee $(DESTDIR)volume_sequencer_test.out.txt
 	$(GHDL_PROG) -e $(VFLAGS) Volume_BCD_2_bin_test
 	$(GHDL_PROG) -r $(VFLAGS) Volume_BCD_2_bin_test --vcd=$(WAVDESTDIR)Volume_BCD_2_bin_test.wav 2>&1 | tee $(DESTDIR)Volume_BCD_2_bin_test.out.txt
+	$(GHDL_PROG) -e $(VFLAGS) Volume_BCD_request_test
+	$(GHDL_PROG) -r $(VFLAGS) Volume_BCD_request_test --vcd=$(WAVDESTDIR)Volume_BCD_request_test.wav 2>&1 | tee $(DESTDIR)Volume_BCD_request_test.out.txt
 
 amplitude_parts_cxx : $(SCRDIR)amplitude.vhdl $(SCRDIR)amplitude_test.vhdl $(SCRDIR)utils_package.vhdl $(SCRDIR)amplitude_package.vhdl 
 	$(GHDL_PROG) -a $(VFLAGS) $(SCRDIR)utils_package.vhdl

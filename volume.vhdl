@@ -39,7 +39,7 @@ begin
       RST_if : if RST = '0' then
         case sequencer_state is
           when "00001" | "00100" | "00111" =>
-            RAM_read        <= '1';
+            RAM_read <= '1';
             if sequencer_state = "00111" then
               requested_volume_oper <= "101";
             end if;
@@ -71,8 +71,8 @@ begin
           when "01010" =>
             requested_BCD_2_bin <= "01";
             -- write back the amplitude, the address low is already OK
-            RAM_write             <= '1';
-            sequencer_state       <= "01011";
+            RAM_write           <= '1';
+            sequencer_state     <= "01011";
           when "01011" =>
             RAM_write           <= '0';
             -- Now the BCD handler shows the new actual volume
@@ -87,31 +87,31 @@ begin
           when "01101" =>
             -- Now the volume is ready,
             -- start the multiplication
-            requested_BCD_2_bin <= "00";
-            RAM_write       <= '1';
+            requested_BCD_2_bin    <= "00";
+            RAM_write              <= '1';
             start_vol_ampl_product <= '1';
-            sequencer_state <= "01110";
+            sequencer_state        <= "01110";
           when "01110" =>
             start_vol_ampl_product <= '0';
-            RAM_write       <= '0';
+            RAM_write              <= '0';
             -- multiplication, RAM and BCD to binary have already stored,
             -- Now the volume handler shows the stored volume
-            requested_volume_oper <= "111";
-            sequencer_state <= "01111";
+            requested_volume_oper  <= "111";
+            sequencer_state        <= "01111";
           when "01111" =>
-            RAM_addr_low    <= "01";
+            RAM_addr_low          <= "01";
             requested_volume_oper <= "000";
-            sequencer_state <= "10000";
+            sequencer_state       <= "10000";
           when "10000" =>
-            RAM_write <= '1';
+            RAM_write       <= '1';
             sequencer_state <= "10001";
           when "10001" =>
-            RAM_write <= '0';
+            RAM_write       <= '0';
             sequencer_state <= "10010";
           when "10010" =>
             RAM_addr_low    <= "00";
             sequencer_state <= "00000";
-            -- addr register with the register divided by 8
+          -- addr register with the register divided by 8
 -- In fact $0000
           when others =>
             NEW_READY_IF : if ready = '0' then
@@ -241,33 +241,43 @@ end entity volume_BCD_request;
 
 architecture arch of volume_BCD_request is
   type BCD_type is array(integer range<>) of std_logic_vector(3 downto 0);
-  signal stored_volume : std_logic_vector(volumes_input'range);
-  signal mute_recover  : std_logic;
+  signal stored_volume  : std_logic_vector(volumes_input'range);
+  signal mute_recover   : std_logic;
+  --! The internals is a vector of the volume size
+  --!   if multiple of 4 or ceiled to the next multiple of 4
+  signal volume_working : std_logic_vector(4 * ((volumes_input'length + 3) / 4) - 1 downto 0);
+  signal volume_add_sub : std_logic_vector(volume_working'range);
 begin
   assert volumes_input'length = volumes_output'length
     report "The size of the input volume vector ( " & integer'image(volumes_input'length) & ")" &
-    " should be the same than the output volume vector (" & integer'image(volumes_input'length) & ")"
+    " should be the same than the output volume vector (" & integer'image(volumes_output'length) & ")"
     severity failure;
   assert speed'length > 1
     report "The power 2 of the size of the speed vector ( " & integer'image(speed'length) & ")" &
     " should be at least 1"
     severity failure;
-  assert 2** (3*speed'length/4+1) > volumes_input'length
-    report "The power 2 of the size the the speed vector (" & integer'image(volumes_input'length) & ") " &
-    "is extravagant against the size of the volume vector (" & integer'image(stored_volume'length) & ")"
+  assert (4*2**speed'length/3-3) <= ( volumes_input'length - 2 )
+    report "The power 2 of the size the the speed vector (" & integer'image(speed'length) & ") " &
+    "is extravagant against the size of the volume vector (" & integer'image(volumes_input'length) & ")"
     severity warning;
-  assert 2** (3*speed'length/4-1) < volumes_input'length
-    report "The power 2 of the size the the speed vector (" & integer'image(volumes_input'length) & ") " &
-    "is low against the size of the volume vector (" & integer'image(stored_volume'length) & ")"
+  assert (4*2**speed'length/3+3) >= ( volumes_input'length - 2 )
+    report "The power 2 of the size the the speed vector (" & integer'image(speed'length) & ") " &
+    "is low against the size of the volume vector (" & integer'image(volumes_input'length) & ")"
     severity warning;
 
+  volumes_output <= volume_working(volume_working'high downto volume_working'high - volumes_output'length + 1);
 
+-- TEMP TEMP TEMP
+  volume_add_sub <= X"200";
+  
   main_proc : process (CLK) is
+    variable ind_8_4_2_1      : integer;
+    variable op_A, op_B, op_S : signed(4 downto 0);
   begin  -- process main_proc
     if rising_edge(CLK) then
       ACTION_CASE : case action is
         when "010" =>
-          volumes_output <= volumes_input;
+          volume_working <= (volumes_input, others => '0');
         when "011" =>
           stored_volume <= volumes_input;
           mute_recover  <= mute_recover_in;
@@ -284,7 +294,22 @@ begin
               end if;
             when "10" | "11" =>
               if does_channel_matches = '1' then
--- TEMP TEMP TEMP
+                -- Since only one digit is changed at a time,
+                -- the digits are add or subtracted individually
+                for ind in 0 to volume_working'length / 4 - 1 loop
+                  op_A := ("0", signed(volume_working(volume_working'low + (ind + 1) * 4 - 1 downto
+                                                        volume_working'low + ind * 4)));
+                  op_B := ("0", signed(volume_add_sub(volume_add_sub'low + (ind + 1) * 4 - 1 downto
+                                                        volume_add_sub'low + ind * 4)));
+                  if request = "10" then
+                    op_S := op_A + op_B;
+                  else
+                    op_S := op_A - op_B;
+                  end if;
+                  volume_working(volume_working'low + (ind + 1) * 4 - 1 downto
+                                 volume_working'low + ind * 4) <=
+                    std_logic_vector ( op_S(3 downto 0));
+                end loop;
               end if;
             when others =>
               null;
@@ -292,9 +317,31 @@ begin
         when "101" =>
           null;
         when "110" =>
-          null;
+          -- Last step: if > 9..9 or < 0, set this value to 9..9 or 0
+          -- Since the speed on the high digit can not be more than 2
+          --   only the values $A, $B are reachable if the volume goes up and
+          --   only the values $F, $E are reachable if the volume goes down
+          -- $C and $D can normally noit be reached, the volume is reset
+          if volume_working(volume_working'high downto volume_working'high - 2) = "101" then
+            ind_8_4_2_1 := 1;
+            for ind in volume_working'high downto volume_working'low loop
+              if ind_8_4_2_1 = 0 or ind_8_4_2_1 = 1 then
+                volume_working(ind) <= '1';
+              else
+                volume_working(ind) <= '0';
+              end if;
+              if ind_8_4_2_1 > 2 then
+                ind_8_4_2_1 := 0;
+              else
+                ind_8_4_2_1 := ind_8_4_2_1 + 1;
+              end if;
+            end loop;
+          elsif volume_working(volume_working'high downto volume_working'high - 2) = "110" or
+            volume_working(volume_working'high downto volume_working'high - 2) = "111" then
+            volume_working <= (others => '0');
+          end if;
         when "111" =>
-          volumes_output <= stored_volume;
+          volume_working <= (stored_volume, others => '0');
         when others =>
           null;
       end case ACTION_CASE;

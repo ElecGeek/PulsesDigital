@@ -163,7 +163,7 @@ package Volume_package is
       --! 00 = idle, 01 = mute, 10 = down, 11 = up
       --! In case of mute, speed=0 mute one, speed > 0 mute all
       request              : in  std_logic_vector(1 downto 0);
-      output_vol           : out std_logic_vector;
+      volumes_output       : out std_logic_vector;
       mute_recover_out     : out std_logic
       );
   end component volume_BCD_request;
